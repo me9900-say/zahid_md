@@ -1,0 +1,18 @@
+{
+  "name": "♥️𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 PAIR♥️",
+  "description": "SESSION ID GENERATOR FOR WHATSAPP BOTS",
+  "logo": "https://files.catbox.moe/himp43.jpg",
+  "repository": "https://github.com/me9900-say/AZmini",
+  "keywords": ["@Zahid-MD"],
+  "success_url": "/", 
+  "buildpacks": [
+    { "url": "https://github.com/heroku/heroku-buildpack-nodejs#latest" }
+  ],
+  "env": {      
+    "MESSAGE": {
+      "description": "Msg Attached With Session ID",
+      "value": "🔰 BY || 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 OFFICIAL 🔰",
+      "required": false 
+    }
+  }
+}
