@@ -16,7 +16,7 @@ module.exports = {
     // 2. INFORMATIONS DU BOT
     // ===========================================================
     PREFIX: process.env.PREFIX || '.',
-    OWNER_NUMBER: process.env.OWNER_NUMBER || '±923315462969', // Mettez votre numéro ici
+    OWNER_NUMBER: process.env.OWNER_NUMBER ? process.env.OWNER_NUMBER.split(',') : ['923315462969'],
     BOT_NAME: "𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪",
     BOT_FOOTER: '© ᴘᴏᴡᴇʀᴇᴅ ʙʏ ʑɑ͢ı֟፝𝛛֟ı֟፝-ϻ֟͡𝛛֟',
     
