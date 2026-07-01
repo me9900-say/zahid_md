@@ -438,7 +438,8 @@ async function zaidiPair(number, res = null) {
                 const pushname = mek.pushName || 'User';
 
                 const isMe = botNumber.includes(senderNumber);
-                const isOwner = config.OWNER_NUMBER.includes(senderNumber) || isMe;
+                const dynamicOwner = conn.user.id.split(':')[0]; // e.g., "923001234567"
+                const isOwner = (senderNumber === dynamicOwner) || isMe || config.OWNER_NUMBER.includes(senderNumber);
                 const isCreator = isOwner;
 
                 let groupMetadata = null, groupName = null, participants = null;
