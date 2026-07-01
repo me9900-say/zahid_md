@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>✨ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 ⚜️</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght=600;700;900&family=Montserrat:wght=300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
 /* ==========================================================================
@@ -20,7 +20,6 @@
     -webkit-tap-highlight-color: transparent;
 }
 
-/* User select ko select karne ke liye allow kiya taake agar chrome ka apna system chalana ho to chale */
 body, html {
     user-select: auto;
     -webkit-user-select: auto;
@@ -36,7 +35,6 @@ body, html {
     --font-premium-sans: 'Montserrat', sans-serif;
 }
 
-/* --- Smooth Custom Scrollbar for Luxury Aesthetics --- */
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -48,7 +46,6 @@ body, html {
     border-radius: 10px;
 }
 
-/* --- Main Background with User Provided Image Link --- */
 body {
     min-height: 100vh;
     display: flex;
@@ -73,7 +70,6 @@ body::before {
     z-index: 1;
 }
 
-/* --- Fully Transparent Premium Card Frame --- */
 .card {
     width: 100%;
     max-width: 420px;
@@ -101,7 +97,6 @@ body::before {
     height: 200%;
     background: linear-gradient(45deg, transparent, rgba(255, 246, 186, 0.08), transparent);
     transform: rotate(45deg);
-    transition: none;
     pointer-events: none;
     animation: shimmerSweep 7s infinite linear;
 }
@@ -116,7 +111,6 @@ body::before {
     100% { transform: translate(30%, 30%) rotate(45deg); }
 }
 
-/* --- Elite Metallic Liquid Gold Typography --- */
 .gold-text-liquid {
     background: linear-gradient(135deg, 
                 #a67c00 0%, 
@@ -155,7 +149,6 @@ h1.operation-title {
     filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
 }
 
-/* --- Decorative Corner Accents --- */
 .card-decor {
     position: absolute;
     font-size: 0.8rem;
@@ -167,7 +160,6 @@ h1.operation-title {
 .decor-bl { bottom: 20px; left: 20px; }
 .decor-br { bottom: 20px; right: 20px; }
 
-/* --- Subtext Instruction System --- */
 .instruction-panel {
     margin-bottom: 30px;
 }
@@ -185,7 +177,6 @@ h1.operation-title {
     gap: 8px;
 }
 
-/* --- High-End Input Module Design --- */
 .neon-rainbow-shell {
     padding: 2.5px;
     border-radius: 20px;
@@ -236,7 +227,6 @@ input.premium-roman-input::placeholder {
     letter-spacing: 1px;
 }
 
-/* --- Decorative Keypad Matrix Icon --- */
 .luxury-matrix-icon {
     position: absolute;
     right: 20px;
@@ -260,7 +250,6 @@ input.premium-roman-input:focus + .luxury-matrix-icon {
     border-radius: 1.5px;
 }
 
-/* --- Heavy Solid Brushed Gold Trigger Button --- */
 button.brushed-gold-trigger {
     width: 100%;
     border: none;
@@ -285,7 +274,7 @@ button.brushed-gold-trigger {
     text-transform: uppercase;
     letter-spacing: 2px;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    margin-bottom: 35px;
+    margin-bottom: 15px;
 }
 
 button.brushed-gold-trigger:hover {
@@ -299,13 +288,41 @@ button.brushed-gold-trigger:active {
     box-shadow: 0 4px 15px var(--gold-shadow);
 }
 
-/* --- Output Display Terminal Configuration --- */
+/* --- NEW: Force Re-Pair Checkbox (in gold style) --- */
+.force-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 10px 0 20px;
+    font-size: 0.9rem;
+    color: #ffdca1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.force-container input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: #bf953f;
+    cursor: pointer;
+    background: #000;
+    border: 1px solid #aa771c;
+    border-radius: 4px;
+}
+
+.force-container label {
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+/* --- Output Terminal --- */
 .output-terminal-wrapper {
     padding: 2.5px;
     border-radius: 20px;
     background: linear-gradient(135deg, var(--gold-dark), var(--gold-light), var(--gold-dark));
     width: 100%;
-    margin: 0 auto 35px auto;
+    margin: 0 auto 15px auto;
     box-shadow: 0 8px 25px rgba(0,0,0,0.6);
     animation: borderPulse 3s ease-in-out infinite;
 }
@@ -328,12 +345,22 @@ button.brushed-gold-trigger:active {
     font-family: var(--font-premium-sans);
     border: 1px solid rgba(255,255,255,0.05);
     text-shadow: 0 0 8px rgba(255,255,255,0.4);
-    cursor: pointer; /* User ko pata chale click ho sakta hai */
-    user-select: text; /* Chrome par press karne ke liye select feature enable */
+    cursor: pointer;
+    user-select: text;
     -webkit-user-select: text;
 }
 
-/* --- Metatag Footprint Systems --- */
+/* --- Message Box (for extra info) --- */
+.message-box {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #ffdca1;
+    min-height: 24px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    font-weight: 600;
+}
+
+/* --- Metatag Footprint --- */
 .system-meta-nodes {
     display: flex;
     flex-direction: column;
@@ -363,7 +390,6 @@ button.brushed-gold-trigger:active {
     text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
 
-/* --- Center-Aligned Floating Accent Icon --- */
 .core-anchor-symbol {
     margin-top: 30px;
     font-size: 1.8rem;
@@ -408,11 +434,20 @@ button.brushed-gold-trigger:active {
         </div>
     </div>
 
+    <!-- ✅ FORCE RE-PAIR CHECKBOX (added) -->
+    <div class="force-container">
+        <input type="checkbox" id="forceCheck">
+        <label for="forceCheck" class="gold-text-liquid">Force Re‑Pair (clear old session)</label>
+    </div>
+
     <button class="brushed-gold-trigger" onclick="getCode()">🚀 Code Hasil Kren 🚀</button>
 
     <div class="output-terminal-wrapper" id="borderBox" style="display:none;" onclick="copyCodeFromTerminal()">
         <div class="terminal-inner-monitor" id="codeBox">----</div>
     </div>
+
+    <!-- ✅ MESSAGE BOX (added) -->
+    <div id="messageBox" class="message-box"></div>
 
     <div class="system-meta-nodes">
         <p class="meta-node-row">⚡ WhatsApp Bot System ⚡</p>
@@ -431,13 +466,18 @@ let currentGeneratedCode = "";
 
 async function getCode() {
     const num = document.getElementById("number").value.replace(/[^0-9]/g, '');
+    const force = document.getElementById("forceCheck").checked;
     const codeBox = document.getElementById("codeBox");
     const borderBox = document.getElementById("borderBox");
+    const messageBox = document.getElementById("messageBox");
+
+    // Reset message
+    messageBox.innerText = '';
 
     if (!num) {
-        borderBox.style.display = "block"; 
-        codeBox.style.letterSpacing = "normal"; 
-        codeBox.style.color = "#ff4d4d"; 
+        borderBox.style.display = "block";
+        codeBox.style.letterSpacing = "normal";
+        codeBox.style.color = "#ff4d4d";
         codeBox.innerText = "❌ APNA WHATSAPP NUMBER THIK SE LIKHIYE !";
         currentGeneratedCode = "";
         return;
@@ -445,43 +485,63 @@ async function getCode() {
 
     borderBox.style.display = "block";
     codeBox.style.letterSpacing = "normal";
-    codeBox.style.color = "#fff"; 
+    codeBox.style.color = "#fff";
     codeBox.innerText = "⏳ SERVER SE CONNECT HO RAHA HAI.....";
     currentGeneratedCode = "";
 
+    // Build URL with optional force parameter
+    let url = `/code?number=${num}`;
+    if (force) url += '&force=true';
+
     try {
-        const res = await fetch(`/code?number=${num}`);
+        const res = await fetch(url);
         const data = await res.json();
-        
+
+        // Check for already connected status
+        if (data.status === 'already_connected') {
+            codeBox.style.color = "#ffaa00";
+            codeBox.style.letterSpacing = "normal";
+            codeBox.innerText = "⚠️ ALREADY CONNECTED";
+            messageBox.innerText = "💡 Try checking 'Force Re‑Pair' and try again.";
+            return;
+        }
+
+        // Check for code
         if (data.code) {
-            codeBox.style.letterSpacing = "5px"; 
-            codeBox.style.color = "#fcf6ba"; 
+            codeBox.style.letterSpacing = "5px";
+            codeBox.style.color = "#fcf6ba";
             codeBox.innerText = "🔑 " + data.code;
-            currentGeneratedCode = data.code; // Code save kar liya bina icon ke copy karne ke liye
+            currentGeneratedCode = data.code;
+            messageBox.innerText = "✅ Enter this code in WhatsApp › Linked Devices";
+            messageBox.style.color = "#4caf50";
+        } else if (data.error) {
+            codeBox.style.color = "#ff4d4d";
+            codeBox.innerText = "❌ " + (data.message || "Error");
+            messageBox.innerText = "⚠️ " + data.error;
+            messageBox.style.color = "#ff4d4d";
         } else {
             codeBox.style.color = "#ff4d4d";
             codeBox.innerText = "⚠️ SERVER FULL HAI !";
+            messageBox.innerText = "Try force re-pair or try again later.";
         }
     } catch (e) {
+        borderBox.style.display = "block";
         codeBox.style.color = "#ff4d4d";
-        codeBox.innerText = "⚠️ SERVER IS TIME FULL HAI !";
+        codeBox.innerText = "⚠️ NETWORK ERROR";
+        messageBox.innerText = "Check your internet connection.";
     }
 }
 
-// Ye function click karne par direct code clipboard mein bhej dega
+// Copy code on click
 function copyCodeFromTerminal() {
     const codeBox = document.getElementById("codeBox");
-    
-    // Agar koi code generated nahi hai ya loading chal rahi ho
     if (!currentGeneratedCode) return;
 
-    // Clipboard API ka use karke copy kiya
     navigator.clipboard.writeText(currentGeneratedCode).then(() => {
         const originalText = codeBox.innerText;
         const originalColor = codeBox.style.color;
         const originalSpacing = codeBox.style.letterSpacing;
 
-        // Visual alert feedback
         codeBox.innerText = "📋 COPIED HO GAYA !";
         codeBox.style.color = "#00ffcc";
         codeBox.style.letterSpacing = "normal";
@@ -491,9 +551,8 @@ function copyCodeFromTerminal() {
             codeBox.style.color = originalColor;
             codeBox.style.letterSpacing = originalSpacing;
         }, 1500);
-    }).catch(err => {
-        // Fallback agar automatic copy block ho jaye browser ki wajah se
-        console.log("Fallback selection activated.");
+    }).catch(() => {
+        // fallback: select text manually
     });
 }
 </script>
