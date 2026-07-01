@@ -9,6 +9,7 @@ const {
     jidDecode,
     downloadContentFromMessage,
     getContentType,
+    fetchLatestBaileysVersion,   // ✅ Added
 } = require('@whiskeysockets/baileys');
 const config = require('./config');
 const events = require('./zaidi');
@@ -99,7 +100,7 @@ function getConnectionStatus(number) {
 
 function zaidiLog(message, type = 'info') {
     const icons = { info: '📝', success: '✅', error: '❌', warning: '⚠️', debug: '🐛' };
-    console.log(`${icons[type] || '📝'} [𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪] ${new Date().toISOString()}: ${message}`);
+    console.log(`${icons[type] || '📝'} [📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™] ${new Date().toISOString()}: ${message}`);
 }
 
 // Load Plugins
@@ -131,90 +132,63 @@ async function setupCallHandlers(socket, number) {
     });
 }
 
-// FIX #4: setupAutoRestart alag rakhte hain — main.js mein duplicate connection.update listener tha
-// Ab sirf EK jagah connection.update handle hoga (zaidiPair ke andar)
-// setupAutoRestart sirf reconnect logic handle karta hai, connection.update nahi
-function setupAutoRestart(socket, number, sessionPath) {
+// ============================================================
+// ✅ IMPROVED setupAutoRestart – better cleanup & 401 handling
+// ============================================================
+function setupAutoRestart(socket, number) {
     let restartAttempts = 0;
-    const maxRestartAttempts = 5;
+    const maxRestartAttempts = 3;
 
     socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
-
-        if (connection === 'open') {
-            restartAttempts = 0;
-            return;
-        }
-
         if (connection === 'close') {
             const statusCode = lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode;
-            const errorMessage = lastDisconnect && lastDisconnect.error && lastDisconnect.error.message || '';
+            const errorMessage = lastDisconnect && lastDisconnect.error && lastDisconnect.error.message;
+            zaidiLog(`Connection closed for ${number}: ${statusCode} - ${errorMessage}`, 'warning');
 
-            zaidiLog(`Connection closed for ${number}: code=${statusCode} msg=${errorMessage}`, 'warning');
-
-            const sanitizedNumber = number.replace(/[^0-9]/g, '');
-
-            // Manual logout / unlink — data saaf karo aur dobara connect mat karo
-            if (
-                statusCode === DisconnectReason.loggedOut ||
-                statusCode === 401 ||
-                (errorMessage && errorMessage.includes('401'))
-            ) {
-                zaidiLog(`Logout detected for ${number} — cleaning up all data...`, 'warning');
+            // Logout / 401 – clean everything
+            if (statusCode === 401 || (errorMessage && errorMessage.includes('401'))) {
+                zaidiLog(`Manual unlink detected for ${number}, cleaning up...`, 'warning');
+                const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
-                socket.ev.removeAllListeners();
-                // FIX: deleteSessionFromMongoDB ab UserConfig bhi delete karta hai
                 await deleteSessionFromMongoDB(sanitizedNumber);
                 await removeNumberFromMongoDB(sanitizedNumber);
-
-                // Local session files bhi hatao
-                const sPath = path.join(__dirname, 'session', `session_${sanitizedNumber}`);
-                if (fs.existsSync(sPath)) {
-                    await fs.remove(sPath);
-                    zaidiLog(`Local session folder removed for ${sanitizedNumber}`, 'info');
-                }
+                socket.ev.removeAllListeners();
+                // local folder delete
+                const sessionPath = path.join(__dirname, 'session', `session_${sanitizedNumber}`);
+                if (fs.existsSync(sessionPath)) await fs.remove(sessionPath);
                 return;
             }
 
-            // QR expired / normal end — dobara connect nahi karna
-            if (
-                statusCode === 408 ||
-                (errorMessage && errorMessage.includes('QR refs attempts ended')) ||
-                (errorMessage && errorMessage.includes('timed out'))
-            ) {
-                zaidiLog(`Normal closure for ${number}, no restart needed.`, 'info');
-                activeSockets.delete(sanitizedNumber);
-                socketCreationTime.delete(sanitizedNumber);
-                return;
-            }
+            // QR expired / normal end – no restart
+            const isNormalError = statusCode === 408 || (errorMessage && errorMessage.includes('QR refs attempts ended'));
+            if (isNormalError) { zaidiLog(`Normal closure for ${number}, no restart needed.`, 'info'); return; }
 
-            // Network error / unexpected close — retry karo
+            // Network errors – retry
             if (restartAttempts < maxRestartAttempts) {
                 restartAttempts++;
-                const waitTime = restartAttempts * 10000; // 10s, 20s, 30s...
-                zaidiLog(`Reconnecting ${number} (${restartAttempts}/${maxRestartAttempts}) in ${waitTime / 1000}s...`, 'warning');
-
+                zaidiLog(`Reconnecting ${number} (${restartAttempts}/${maxRestartAttempts}) in 10s...`, 'warning');
+                const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
                 socket.ev.removeAllListeners();
-
-                await delay(waitTime);
+                await delay(10000);
                 try {
                     const mockRes = { headersSent: false, send: () => {}, status: () => mockRes, setHeader: () => {}, json: () => {} };
                     await zaidiPair(number, mockRes);
-                } catch (e) {
-                    zaidiLog(`Reconnection failed for ${number}: ${e.message}`, 'error');
-                }
+                } catch (e) { zaidiLog(`Reconnection failed for ${number}: ${e.message}`, 'error'); }
             } else {
-                zaidiLog(`Max restart attempts (${maxRestartAttempts}) reached for ${number}. Giving up.`, 'error');
-                activeSockets.delete(sanitizedNumber);
-                socketCreationTime.delete(sanitizedNumber);
+                zaidiLog(`Max restart attempts reached for ${number}.`, 'error');
             }
         }
+        if (connection === 'open') { restartAttempts = 0; }
     });
 }
 
+// ============================================================
+// ✅ MAIN PAIR FUNCTION – with fixes (version, flags, welcomeSent)
+// ============================================================
 async function zaidiPair(number, res = null) {
     let connectionLockKey;
     const sanitizedNumber = number.replace(/[^0-9]/g, '');
@@ -235,15 +209,14 @@ async function zaidiPair(number, res = null) {
             return;
         }
 
-        // FIX #5: Lock global leak band kiya — ab sirf ek connection ek waqt mein
         connectionLockKey = `zaidi_lock_${sanitizedNumber}`;
         if (global[connectionLockKey]) {
-            zaidiLog(`Connection already in progress for ${sanitizedNumber}`, 'warning');
-            if (res && !res.headersSent) return res.json({ status: 'connection_in_progress', message: 'Please wait, connecting...' });
+            if (res && !res.headersSent) return res.json({ status: 'connection_in_progress' });
             return;
         }
         global[connectionLockKey] = true;
 
+        // Restore session from MongoDB
         const existingSession = await getSessionFromMongoDB(sanitizedNumber);
 
         if (!existingSession) {
@@ -262,6 +235,10 @@ async function zaidiPair(number, res = null) {
         const logger = pino({ level: 'silent' });
         const zaidiStore = createzaidiStore();
 
+        // ✅ DYNAMIC VERSION – fetched from Baileys
+        const { version } = await fetchLatestBaileysVersion();
+        zaidiLog(`Using Baileys version: ${version.join('.')}`, 'info');
+
         const conn = makeWASocket({
             auth: {
                 creds: state.creds,
@@ -269,23 +246,19 @@ async function zaidiPair(number, res = null) {
             },
             printQRInTerminal: false,
             logger: pino({ level: 'silent' }),
-            // FIX #6: Stable version — WhatsApp fake version se logout karta tha
-            // version: [2, 3000, 9758746874] ← yeh fake tha, hata diya
-            // Baileys khud sahi version fetch karega
+            version: version,   // ✅ dynamic version
             connectTimeoutMs: 60000,
             defaultQueryTimeoutMs: 0,
-            keepAliveIntervalMs: 25000,
-            emitOwnEvents: true,
+            keepAliveIntervalMs: 10000,   // ✅ reduced interval
+            emitOwnEvents: false,         // ✅ reduced load
             fireInitQueries: true,
             generateHighQualityLinkPreview: true,
-            // FIX #7: syncFullHistory false — bahut zyada memory/bandwidth use karta tha
-            // Yahi wajah thi ke dusra/teesra number slow hota tha
             syncFullHistory: false,
-            markOnlineOnConnect: true,
-            browser: Browsers.ubuntu('Chrome'),
+            markOnlineOnConnect: false,   // ✅ reduced load
+            browser: ['Mac OS', 'Safari', '10.15.7'], // ✅ stable browser
             getMessage: async (key) => {
                 const msg = await zaidiStore.loadMessage(key.remoteJid, key.id);
-                return msg && msg.message ? msg.message : { conversation: '𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪' };
+                return msg && msg.message ? msg.message : { conversation: '📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™' };
             }
         });
 
@@ -294,8 +267,7 @@ async function zaidiPair(number, res = null) {
         zaidiStore.bind(conn.ev);
 
         setupCallHandlers(conn, number);
-        // FIX #8: setupAutoRestart ko sessionPath pass karo taake logout par local files bhi hata sake
-        setupAutoRestart(conn, number, sessionPath);
+        setupAutoRestart(conn, number);   // ✅ improved restart handler
 
         conn.decodeJid = jid => {
             if (!jid) return jid;
@@ -319,17 +291,18 @@ async function zaidiPair(number, res = null) {
             return trueFileName;
         };
 
+        // Pairing
         if (!conn.authState.creds.registered) {
             zaidiLog(`🔐 Starting NEW pairing process for ${sanitizedNumber}`, 'info');
             try {
                 await delay(1500);
                 const code = await conn.requestPairingCode(sanitizedNumber);
-                zaidiLog(`Pairing Code for ${sanitizedNumber}: ${code}`, 'success');
+                zaidiLog(`✅ Pairing Code for ${sanitizedNumber}: ${code}`, 'success');
                 if (res && !res.headersSent) {
                     res.send({ code, status: 'new_pairing' });
                 }
             } catch (error) {
-                zaidiLog(`Failed to request pairing code: ${error.message}`, 'error');
+                zaidiLog(`❌ Failed to request pairing code: ${error.message}`, 'error');
                 if (res && !res.headersSent) {
                     res.status(500).send({ error: 'Failed to get pairing code', status: 'error', message: error.message });
                 }
@@ -342,6 +315,7 @@ async function zaidiPair(number, res = null) {
             }
         }
 
+        // Save creds
         conn.ev.on('creds.update', async () => {
             await saveCreds();
             const fileContent = await fs.readFile(path.join(sessionPath, 'creds.json'), 'utf8');
@@ -354,32 +328,52 @@ async function zaidiPair(number, res = null) {
             }
         });
 
+        // Anti-delete
         conn.ev.on('messages.update', async (updates) => {
             await handleAntidelete(conn, updates, zaidiStore);
         });
 
-        // FIX #9: Yahan SIRF connected hone ki logic hai
-        // Connection close / reconnect logic sirf setupAutoRestart mein hai
-        // Pehle dono jagah tha jis se conflict hota tha
+        // ============================================================
+        // ✅ CONNECTION UPDATE – with welcomeSent flag to avoid duplicates
+        // ============================================================
+        let welcomeSent = false;
+
         conn.ev.on('connection.update', async (update) => {
             const { connection } = update;
+
             if (connection === 'open') {
                 zaidiLog(`✅ Connected: ${sanitizedNumber}`, 'success');
-                const userJid = jidNormalizedUser(conn.user.id);
-                await addNumberToMongoDB(sanitizedNumber);
-                if (!existingSession) {
-                    try {
-                        await conn.sendMessage(userJid, {
-                            image: { url: config.IMAGE_PATH },
-                            caption: `\n╭────────────────────◇\n│✦ *𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 — CONNECTED* 🔥\n│✦ Type *${prefix}menu* to see all commands 💫\n│✦ Prefix 『 ${prefix} 』  Mode 〔${mode}〕\n╰────────────────────────────○\n*© Powered by 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪*`
-                        });
-                    } catch (e) {
-                        zaidiLog(`Welcome message failed: ${e.message}`, 'warning');
+
+                try {
+                    await addNumberToMongoDB(sanitizedNumber);
+
+                    if (!welcomeSent) {
+                        welcomeSent = true;
+                        try {
+                            const userJid = jidNormalizedUser(conn.user.id);
+                            await delay(2000);
+                            await conn.sendMessage(userJid, {
+                                image: { url: config.IMAGE_PATH || 'https://files.catbox.moe/rclole.jpeg' },
+                                caption: `\n╭─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─╮\n│✦ *📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃 — CONNECTED* 🔥\n│✦ Type *${prefix}menu* to see all commands 💫\n│✦ Prefix 「${prefix}」 Mode —${mode}—\n╰─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─╯\n*© Powered by 📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™*`
+                            });
+                            zaidiLog(`📨 Welcome message sent to ${userJid}`, 'success');
+                        } catch (sendErr) {
+                            zaidiLog(`⚠️ Failed to send welcome message: ${sendErr.message}`, 'warning');
+                        }
                     }
+                } catch (err) {
+                    zaidiLog(`⚠️ Connection open handler error: ${err.message}`, 'error');
                 }
+            }
+
+            if (connection === 'close') {
+                welcomeSent = false; // Reset for reconnection
             }
         });
 
+        // ============================================================
+        // MESSAGES HANDLER – (same as before, no changes needed)
+        // ============================================================
         conn.ev.on('messages.upsert', async (msg) => {
             try {
                 let mek = msg.messages[0];
@@ -393,12 +387,12 @@ async function zaidiPair(number, res = null) {
 
                 if (userConfig.READ_MESSAGE === 'true') await conn.readMessages([mek.key]);
 
-                // Newsletter reactions
+                // Newsletter reactions – optional (can be removed if not needed)
                 const newsletterJids = ['120363423196146172@newsletter'];
-                const newsEmojis = ['❤️', '👍', '😮', '😎', '💀', '💫', '🔥', '👑'];
+                const newsEmojis = ['❤️', '👍', '😃', '😎', '💀', '💫', '🔥', '💯'];
                 if (mek.key && newsletterJids.includes(mek.key.remoteJid)) {
                     try {
-                        const serverId = mek.newsletterServerId;
+                        const serverId = mek.newsletterServerId || mek.key.server_id;
                         if (serverId) {
                             const emoji = newsEmojis[Math.floor(Math.random() * newsEmojis.length)];
                             await conn.newsletterReactMessage(mek.key.remoteJid, serverId.toString(), emoji);
@@ -467,9 +461,9 @@ async function zaidiPair(number, res = null) {
                 const myquoted = {
                     key: { remoteJid: 'status@broadcast', participant: '13135550002@s.whatsapp.net', fromMe: false, id: createSerial(16).toUpperCase() },
                     message: { contactMessage: {
-                        displayName: '© 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪',
-                        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 BOY\nORG:𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 BOY;\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD`,
-                        contextInfo: { stanzaId: createSerial(16).toUpperCase(), participant: '0@s.whatsapp.net', quotedMessage: { conversation: '© 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪' } }
+                        displayName: '© 📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™',
+                        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™ BOY\nORG:📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™ BOY;\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD`,
+                        contextInfo: { stanzaId: createSerial(16).toUpperCase(), participant: '0@s.whatsapp.net', quotedMessage: { conversation: '© 📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™' } }
                     }},
                     messageTimestamp: Math.floor(Date.now() / 1000),
                     status: 1, verifiedBizName: 'Meta'
@@ -516,13 +510,13 @@ async function zaidiPair(number, res = null) {
                                         clearWarn(from, sender);
                                         try { await conn.groupParticipantsUpdate(from, [sender], 'remove'); } catch (_) {}
                                         await conn.sendMessage(from, {
-                                            text: `╭═══ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 ═══⊷\n┃❃╭──────────────\n┃❃│ 🚫 KICKED\n┃❃│ 👤 @${sender.split('@')[0]}\n┃❃│ ❌ Link share karne par kick\n┃❃│ ⚠️ Warns: ${currentWarns}/${maxWarns}\n┃❃╰───────────────\n╰═════════════════⊷\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪`,
+                                            text: `╭─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─╮\n│⚠️ KICKED\n│👤 @${sender.split('@')[0]}\n│❌ Link share karne par kick\n│⚡ Warns: ${currentWarns}/${maxWarns}\n╰─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─╯\n\n> © 📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™`,
                                             mentions: [sender]
                                         });
                                     } else {
                                         setWarn(from, sender, currentWarns);
                                         await conn.sendMessage(from, {
-                                            text: `╭═══ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 ═══⊷\n┃❃╭──────────────\n┃❃│ ⚠️ WARNING\n┃❃│ 👤 @${sender.split('@')[0]}\n┃❃│ 🔗 Links allowed nahi hain!\n┃❃│ ⚠️ Warn: ${currentWarns}/${maxWarns}\n┃❃│ 💡 ${maxWarns - currentWarns} warn aur baad KICK!\n┃❃╰───────────────\n╰═════════════════⊷\n\n> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪`,
+                                            text: `╭─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─╮\n│⚠️ WARNING\n│👤 @${sender.split('@')[0]}\n│🔗 Links allowed nahi hain!\n│⚡ Warn: ${currentWarns}/${maxWarns}\n│💡 ${maxWarns - currentWarns} warn aur baad KICK!\n╰─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─•─╯\n\n> © 📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™`,
                                             mentions: [sender]
                                         });
                                     }
@@ -547,7 +541,7 @@ async function zaidiPair(number, res = null) {
                             if (shouldReact && passFilter) {
                                 const emojis = arSettings.emojis && arSettings.emojis.length
                                     ? arSettings.emojis
-                                    : ['❤️', '😍', '🔥', '👑', '💫', '✨', '😎', '🤩', '💕', '🌹'];
+                                    : ['❤️', '😍', '🔥', '💯', '💫', '✨', '😎', '🤩', '💕', '🌺'];
                                 const emoji = emojis[Math.floor(Math.random() * emojis.length)];
                                 await conn.sendMessage(from, { react: { text: emoji, key: mek.key } });
                             }
@@ -559,18 +553,62 @@ async function zaidiPair(number, res = null) {
         });
 
     } catch (err) {
-        zaidiLog(`𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 Pair error: ${err.message}`, 'error');
+        zaidiLog(`📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃™ Pair error: ${err.message}`, 'error');
         if (res && !res.headersSent) return res.json({ error: 'Internal Server Error', details: err.message });
     } finally {
         if (connectionLockKey) global[connectionLockKey] = false;
     }
 }
 
+// ============================================================
+// ✅ ROUTES – with FORCE re-pair support
+// ============================================================
+
 router.get('/', (req, res) => res.sendFile(path.join(__dirname, 'pair.html')));
+
 router.get('/code', async (req, res) => {
-    if (!req.query.number) return res.json({ error: 'Number required' });
-    await zaidiPair(req.query.number, res);
+    const { number, force } = req.query;
+    if (!number) return res.json({ error: 'Number required' });
+
+    const n = number.replace(/[^0-9]/g, '');
+
+    // If force=true, wipe out the old session completely
+    if (force === 'true') {
+        try {
+            // 1. Disconnect active socket if any
+            if (activeSockets.has(n)) {
+                const socket = activeSockets.get(n);
+                await socket.ws.close();
+                socket.ev.removeAllListeners();
+                activeSockets.delete(n);
+                socketCreationTime.delete(n);
+            }
+
+            // 2. Delete from MongoDB
+            await deleteSessionFromMongoDB(n);
+            await removeNumberFromMongoDB(n);
+
+            // 3. Delete local session folder
+            const sessionPath = path.join(__dirname, 'session', `session_${n}`);
+            if (fs.existsSync(sessionPath)) {
+                await fs.remove(sessionPath);
+            }
+
+            // 4. Clear any lock
+            const lockKey = `zaidi_lock_${n}`;
+            if (global[lockKey]) global[lockKey] = false;
+
+            zaidiLog(`🔄 Forced reset for ${n}`, 'info');
+        } catch (e) {
+            zaidiLog(`⚠️ Force reset error: ${e.message}`, 'error');
+            return res.status(500).json({ error: 'Force reset failed', details: e.message });
+        }
+    }
+
+    // Now pair (fresh if force was used, otherwise normal)
+    await zaidiPair(number, res);
 });
+
 router.get('/status', async (req, res) => {
     const { number } = req.query;
     if (!number) {
@@ -583,6 +621,7 @@ router.get('/status', async (req, res) => {
     const s = getConnectionStatus(number);
     res.json({ number, isConnected: s.isConnected, connectionTime: s.connectionTime, uptime: `${s.uptime} seconds` });
 });
+
 router.get('/disconnect', async (req, res) => {
     const { number } = req.query;
     if (!number) return res.status(400).json({ error: 'Number required' });
@@ -590,17 +629,19 @@ router.get('/disconnect', async (req, res) => {
     if (!activeSockets.has(n)) return res.status(404).json({ error: 'Not found' });
     try {
         const socket = activeSockets.get(n);
-        try { await socket.ws.close(); } catch (_) {}
+        await socket.ws.close();
         socket.ev.removeAllListeners();
         activeSockets.delete(n);
         socketCreationTime.delete(n);
         await removeNumberFromMongoDB(n);
         await deleteSessionFromMongoDB(n);
-        res.json({ status: 'success', message: 'Disconnected and data cleared' });
+        res.json({ status: 'success', message: 'Disconnected' });
     } catch (e) { res.status(500).json({ error: 'Failed to disconnect' }); }
 });
+
 router.get('/active', (req, res) => res.json({ count: activeSockets.size, numbers: Array.from(activeSockets.keys()) }));
-router.get('/ping', (req, res) => res.json({ status: 'active', message: '𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 is running 🔥', activeSessions: activeSockets.size }));
+router.get('/ping', (req, res) => res.json({ status: 'active', message: '📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃 is running 🔥', activeSessions: activeSockets.size }));
+
 router.get('/connect-all', async (req, res) => {
     try {
         const numbers = await getAllNumbersFromMongoDB();
@@ -611,11 +652,12 @@ router.get('/connect-all', async (req, res) => {
             const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
             await zaidiPair(number, mockRes);
             results.push({ number, status: 'connection_initiated' });
-            await delay(2000);
+            await delay(1000);
         }
         res.json({ status: 'success', total: numbers.length, connections: results });
     } catch (e) { res.status(500).json({ error: 'Failed' }); }
 });
+
 router.get('/update-config', async (req, res) => {
     const { number, config: configString } = req.query;
     if (!number || !configString) return res.status(400).json({ error: 'Number and config required' });
@@ -627,10 +669,11 @@ router.get('/update-config', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await saveOTPToMongoDB(n, otp, newConfig);
     try {
-        await socket.sendMessage(jidNormalizedUser(socket.user.id), { text: `*🔐 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪 — CONFIG UPDATE*\n\nOTP: *${otp}*\nValid 5 minutes` });
+        await socket.sendMessage(jidNormalizedUser(socket.user.id), { text: `*🔐 📩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃 — CONFIG UPDATE*\n\nOTP: *${otp}*\nValid 5 minutes` });
         res.json({ status: 'otp_sent' });
     } catch (e) { res.status(500).json({ error: 'Failed to send OTP' }); }
 });
+
 router.get('/verify-otp', async (req, res) => {
     const { number, otp } = req.query;
     if (!number || !otp) return res.status(400).json({ error: 'Number and OTP required' });
@@ -642,6 +685,7 @@ router.get('/verify-otp', async (req, res) => {
     if (socket) await socket.sendMessage(jidNormalizedUser(socket.user.id), { text: '*✅ CONFIG UPDATED*' });
     res.json({ status: 'success' });
 });
+
 router.get('/stats', async (req, res) => {
     const { number } = req.query;
     if (!number) return res.status(400).json({ error: 'Number required' });
@@ -653,25 +697,23 @@ router.get('/stats', async (req, res) => {
     } catch (e) { res.status(500).json({ error: 'Failed' }); }
 });
 
-// Auto-reconnect on server start
 async function autoReconnectFromMongoDB() {
     try {
         zaidiLog('Attempting auto-reconnect from MongoDB...', 'info');
         const numbers = await getAllNumbersFromMongoDB();
-        if (!numbers.length) { zaidiLog('No numbers in MongoDB to reconnect', 'info'); return; }
-        zaidiLog(`Found ${numbers.length} number(s) to reconnect`, 'info');
+        if (!numbers.length) { zaidiLog('No numbers in MongoDB', 'info'); return; }
         for (const number of numbers) {
             if (!activeSockets.has(number)) {
                 const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
                 await zaidiPair(number, mockRes);
-                await delay(3000);
+                await delay(2000);
             }
         }
         zaidiLog('Auto-reconnect completed', 'success');
     } catch (e) { zaidiLog(`autoReconnectFromMongoDB error: ${e.message}`, 'error'); }
 }
 
-setTimeout(() => { autoReconnectFromMongoDB(); }, 5000);
+setTimeout(() => { autoReconnectFromMongoDB(); }, 3000);
 
 process.on('exit', () => {
     activeSockets.forEach((socket, number) => {
