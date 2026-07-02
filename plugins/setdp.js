@@ -4,14 +4,27 @@ const { getBuffer } = require('../lib/functions');
 cmd({
     pattern: "setdp",
     alias: ["setpp", "profilepic"],
-    desc: "Apni profile picture change karein. Usage: .setdp (image ke saath reply karein ya image URL dein)",
+    desc: "Apni profile picture change karein. Usage: .setdp (image ke saath reply karein, ya image ke caption mein likhein, ya URL dein)",
     category: "profile",
     react: "🖼️"
 }, async (conn, mek, m, { args, reply, sender, isReply }) => {
     let mediaBuffer = null;
 
-    // Agar image ke saath reply kiya hai
-    if (m.quoted && m.quoted.mimetype && m.quoted.mimetype.startsWith('image/')) {
+    // ✅ 1. Agar command khud image ke caption mein hai (self-image)
+    if (m.mimetype && m.mimetype.startsWith('image/')) {
+        try {
+            const stream = await conn.downloadContentFromMessage(m, 'image');
+            let buffer = Buffer.from([]);
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk]);
+            }
+            mediaBuffer = buffer;
+        } catch (e) {
+            return reply("❌ *Image download nahi ho saki.*");
+        }
+    }
+    // ✅ 2. Agar kisi image ko reply kiya hai
+    else if (m.quoted && m.quoted.mimetype && m.quoted.mimetype.startsWith('image/')) {
         try {
             const stream = await conn.downloadContentFromMessage(m.quoted, 'image');
             let buffer = Buffer.from([]);
@@ -22,8 +35,8 @@ cmd({
         } catch (e) {
             return reply("❌ *Image download nahi ho saki.*");
         }
-    } 
-    // Agar URL diya hai
+    }
+    // ✅ 3. Agar URL diya hai
     else if (args[0] && args[0].match(/https?:\/\/.+/)) {
         try {
             mediaBuffer = await getBuffer(args[0]);
@@ -33,7 +46,7 @@ cmd({
     }
 
     if (!mediaBuffer) {
-        return reply("❌ *Koi image do!*\nYa to kisi image ko .setdp ke saath reply karein, ya image ka URL dein.");
+        return reply("❌ *Koi image do!*\nYa to kisi image ko reply karein, ya image ke caption mein .setdp likhein, ya image ka URL dein.");
     }
 
     try {
