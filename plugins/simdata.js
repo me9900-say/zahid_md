@@ -23,7 +23,7 @@ cmd({
 
   // 🛡️ Protected numbers
   const protectedNumbers = [
-    "923308147104",
+    "923315462969",
     "923076755412"
   ];
 
@@ -32,44 +32,46 @@ cmd({
   }
 
   try {
-    const apiUrl = `https://sychosimdatabase.vercel.app/api/lookup/${number}`;
+    // 🌐 New API URL
+    const apiUrl = `https://rahmandatabase.vercel.app/api?number=${number}`;
     const response = await fetch(apiUrl);
 
     if (!response.ok) {
       return reply("❌ API Error: " + response.status);
     }
 
-    // ❗ API returns TEXT (not JSON)
-    const text = await response.text();
+    // 📥 Parse JSON Response
+    const json = await response.json();
 
-    // 🔍 Extract data using regex
-    const mobile = text.match(/MOBILE:\s*(\d+)/i)?.[1];
-    const name = text.match(/NAME:\s*(.*)/i)?.[1];
-    const cnic = text.match(/CNIC:\s*(\d+)/i)?.[1];
-    const address = text.match(/ADDRESS:\s*(.*)/i)?.[1];
-
-    if (!mobile) {
+    // Check if data exists
+    if (!json.success || !json.data || !json.data.data || !json.data.data.records || json.data.data.records.length === 0) {
       return reply("❌ No record found for this number.");
     }
 
-    // 🛡️ Double protection check
-    if (protectedNumbers.includes(mobile)) {
-      return reply("🚫 Access Denied! Protected number.");
-    }
+    const records = json.data.data.records;
 
-    // ✅ Format output
+    // ✅ Format Output Header
     let msg = `*╭┈───〔 ꜱɪᴍ ᴅᴀᴛᴀ 〕┈───⊷*\n`;
-    msg += `*├▢ 📱 Number:* ${mobile}\n`;
-    msg += `*├▢ 👤 Name:* ${name || "N/A"}\n`;
-    msg += `*├▢ 🆔 CNIC:* ${cnic || "N/A"}\n`;
-    msg += `*├▢ 🏠 Address:* ${address || "N/A"}\n`;
+    msg += `*├▢ 📱 Searched:* ${number}\n`;
+    msg += `*├▢ 📊 Total Records:* ${records.length}\n`;
     msg += `*╰─────────────*\n\n`;
-    msg += `⚠️ _Data from public source_`;
+
+    // 🔄 Loop through all found records
+    records.forEach((record, index) => {
+      msg += `*     〔 RECORD ${index + 1} 〕*\n`;
+      msg += `*▢ 👤 Name:* ${record.full_name || "N/A"}\n`;
+      msg += `*▢ 📱 Number:* ${record.phone || "N/A"}\n`;
+      msg += `*▢ 🆔 CNIC:* ${record.cnic || "N/A"}\n`;
+      msg += `*▢ 🏠 Address:* ${record.address || "N/A"}\n`;
+      msg += `*─────────────────*\n\n`;
+    });
+
+    msg += `⚠️ _Data from: ${json.source || "Public Source"}_`;
 
     await conn.sendMessage(from, { text: msg }, { quoted: mek });
 
   } catch (err) {
     console.error(err);
-    reply("❌ Failed to fetch data.");
+    reply("❌ Failed to fetch data. Something went wrong.");
   }
 });
