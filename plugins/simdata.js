@@ -10,34 +10,33 @@ cmd({
   filename: __filename
 }, async (conn, mek, m, { from, isCreator, args, reply }) => {
 
-  // 🔒 Only owner
-  if (!isCreator) return reply("❌ Owner only command!");
+  // 🔒 Sirf Owner ke liye
+  if (!isCreator) return reply("❌ Sirf Owner ke liye ijazat hai!");
 
   let number = args[0];
-  if (!number) return reply("📞 Example: .simdata 034XXXXXXXXX");
+  if (!number) return reply("📞 Misal: .simdata 0305XXXXXXX");
 
-  // 🔧 Normalize number (03 → 92)
-  if (number.startsWith("03")) {
-    number = "92" + number.slice(1);
-  }
+  // 🔧 Number Format Fix (API ke liye 305xxxx format me convert karna)
+  // Agar +92, 92, ya 0 se start ho raha hai to usko hata dega
+  number = number.replace(/^(0|\+?92)/, '');
 
-  // 🛡️ Protected numbers
+  // 🛡️ Protected numbers (Ab bina 92 ke likhein kyunki format change ho gaya hai)
   const protectedNumbers = [
-    "923315462969",
-    "923076755412"
+    "3308147104", // Pehle 923308147104 tha
+    "3076755412"  // Pehle 923076755412 tha
   ];
 
   if (protectedNumbers.includes(number)) {
-    return reply("🚫 Access Denied! Protected number.");
+    return reply("🚫 Access Denied! Yeh number protected hai.");
   }
 
   try {
-    // 🌐 New API URL
+    // 🌐 API URL (Ab number 305xxxx format me jayega)
     const apiUrl = `https://rahmandatabase.vercel.app/api?number=${number}`;
     const response = await fetch(apiUrl);
 
     if (!response.ok) {
-      return reply("❌ API Error: " + response.status);
+      return reply("❌ API me koi masla hai: " + response.status);
     }
 
     // 📥 Parse JSON Response
@@ -45,33 +44,35 @@ cmd({
 
     // Check if data exists
     if (!json.success || !json.data || !json.data.data || !json.data.data.records || json.data.data.records.length === 0) {
-      return reply("❌ No record found for this number.");
+      return reply("❌ Is number ka koi record nahi mila.");
     }
 
     const records = json.data.data.records;
 
-    // ✅ Format Output Header
-    let msg = `*╭┈───〔 ꜱɪᴍ ᴅᴀᴛᴀ 〕┈───⊷*\n`;
-    msg += `*├▢ 📱 Searched:* ${number}\n`;
-    msg += `*├▢ 📊 Total Records:* ${records.length}\n`;
-    msg += `*╰─────────────*\n\n`;
+    // ✅ ZAIDI-MD VIP Style Output
+    let msg = `╭═══ 📱 𝐒𝐈𝐌 𝐃𝐀𝐓𝐀 ═══⊷\n`;
+    msg += `┃❃╭──────────────\n`;
+    msg += `┃❃│ 🔍 Talaash: ${number}\n`;
+    msg += `┃❃│ 📊 Kul Records: ${records.length}\n`;
 
-    // 🔄 Loop through all found records
+    // 🔄 Loop through all records and format them inside the box
     records.forEach((record, index) => {
-      msg += `*     〔 RECORD ${index + 1} 〕*\n`;
-      msg += `*▢ 👤 Name:* ${record.full_name || "N/A"}\n`;
-      msg += `*▢ 📱 Number:* ${record.phone || "N/A"}\n`;
-      msg += `*▢ 🆔 CNIC:* ${record.cnic || "N/A"}\n`;
-      msg += `*▢ 🏠 Address:* ${record.address || "N/A"}\n`;
-      msg += `*─────────────────*\n\n`;
+      msg += `┃❃├──────────────\n`;
+      msg += `┃❃│ 💎 RECORD NO: 0${index + 1}\n`;
+      msg += `┃❃│ 👤 Naam: ${record.full_name || "N/A"}\n`;
+      msg += `┃❃│ 📱 Mobile No: ${record.phone || "N/A"}\n`;
+      msg += `┃❃│ 🆔 CNIC No: ${record.cnic || "N/A"}\n`;
+      msg += `┃❃│ 🏠 Pata: ${record.address || "N/A"}\n`;
     });
 
-    msg += `⚠️ _Data from: ${json.source || "Public Source"}_`;
+    msg += `┃❃╰───────────────\n`;
+    msg += `╰═════════════════⊷\n\n`;
+    msg += `> © 𝐏𝐨𝐰𝐞𝐫𝐞𝐝 𝐛𝐲 𝐙𝐀𝐈𝐃𝐈-𝐌𝐃`;
 
     await conn.sendMessage(from, { text: msg }, { quoted: mek });
 
   } catch (err) {
     console.error(err);
-    reply("❌ Failed to fetch data. Something went wrong.");
+    reply("❌ Data nikalne me nakami hui. Dobara koshish karein.");
   }
 });
