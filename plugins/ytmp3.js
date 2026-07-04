@@ -1,138 +1,166 @@
-const { cmd } = require('../zaidi'); // Custom bot handler matching your instance path
-const axios = require('axios');
-const yts = require('yt-search');
+const axios = require("axios");
+const yts = require("yt-search");
+const { cmd } = require("../zaidi");
+const config = require("../config");
 
-// ============ SINGLE API SYSTEM ============
-const API_URL = (ytLink) => `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(ytLink)}`;
-
-// ============ REUSABLE AUDIO FETCH FUNCTION ============
-async function getAudioFromApi(youtubeUrl) {
-    try {
-        console.log(`📡 Fetching audio...`);
-        const response = await axios.get(API_URL(youtubeUrl), { timeout: 30000 });
-        
-        // Check if response has audio URL
-        if (response.data && response.data.audioUrl) {
-            console.log(`✅ Audio fetched successfully!`);
-            return {
-                success: true,
-                audioUrl: response.data.audioUrl,
-                title: response.data.title || null,
-                apiUsed: "HectorManuel API"
-            };
-        }
-        return { success: false, error: "No audio URL in response" };
-    } catch (error) {
-        console.log(`❌ API Failed:`, error.message);
-        return { success: false, error: error.message };
-    }
-}
-
-// ============ MAIN PLAY / YTMP3 PLUGIN COMMAND ============
 cmd({
-    pattern: "ytmp3",
-    alias: ["play", "song", "audio", "naat"],
-    desc: "🎵 Instant Download YouTube audio",
-    category: "download",
+    pattern: "play",
+    alias: ["song", "ytmp3", "music", "audio", "gana"],
     react: "🎵",
+    desc: "YouTube search & MP3 download with beautiful design",
+    category: "downloader",
+    use: ".play <song name>",
     filename: __filename
-}, async (conn, mek, m, { from, text, reply }) => {
-
+},
+async (conn, mek, m, { from, args, reply, sender }) => {
     try {
-        const query = text ? text.trim() : '';
-
+        const query = args.join(" ");
+        
+        // ============ CHECK QUERY ============
         if (!query) {
-            return await reply(`╭━〔 🎵 MUSIC ENGINE 〕━⬣
-┃ ⚠️ Example: .play pal pal 
-╰━━━━━━━━━━━━━━━━━━⬣
-> 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪`);
+            return reply(`╭─❖ *🎵 PLAY ENGINE* ❖─⬣
+│
+│  ✧ *Usage:* .play <song name>
+│  ✧ *Example:* .play Pal Pal Dil Ke Paas
+│  ✧ *Aliases:* song, music, ytmp3
+│
+╰───────────────⬣
+> 🔥 ZAIDI-MD`);
         }
 
-        // Processing Reaction
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
+        // ============ SEARCHING REACTION ============
+        await conn.sendMessage(from, { 
+            react: { text: "🔍", key: m.key } 
+        });
 
-        // Regex configuration for matching standard URLs
-        const isYoutubeLink = /(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/)?)([a-zA-Z0-9_-]{11})/i.test(query);
+        // ============ SEARCH YOUTUBE ============
+        const search = await yts(query);
+        if (!search.videos || !search.videos.length) {
+            await conn.sendMessage(from, { 
+                react: { text: "❌", key: m.key } 
+            });
+            return reply(`╭─❖ *🔎 NO RESULTS* ❖─⬣
+│
+│  ✧ No matches found for:
+│  ✧ *"${query}"*
+│
+│  💡 Try:
+│  • Different keywords
+│  • Artist name + song
+│
+╰───────────────⬣`);
+        }
 
-        let videoUrl = query;
-        let title = 'Unknown YouTube Song';
-        let thumbnail = 'https://up6.cc/2026/05/177971006919991.png';
-        let duration = 'Unknown';
-        let author = 'YouTube Audio';
-        let views = '0';
+        const video = search.videos[0];
+        let downloadUrl = "";
+        let songTitle = video.title || "Unknown Song";
+        let thumbnail = video.thumbnail || "";
+        let duration = video.timestamp || "N/A";
+        let author = video.author?.name || "Unknown Artist";
+        let views = video.views ? formatViews(video.views) : "N/A";
 
-        // Scraping data via internal yt-search context parser
-        if (!isYoutubeLink) {
-            const search = await yts(query);
-            if (!search?.videos?.length) {
-                await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-                return await reply("❌ *No matching results found!*");
+        // ============ FETCH AUDIO FROM API ============
+        try {
+            const apiResponse = await axios.get(
+                `https://faizan-api.vercel.app/api/ytdown?url=${encodeURIComponent(video.url)}&format=mp3`,
+                { timeout: 30000 }
+            );
+            
+            if (apiResponse.data && apiResponse.data.downloadURL) {
+                downloadUrl = apiResponse.data.downloadURL;
+                songTitle = apiResponse.data.title || video.title;
+                thumbnail = apiResponse.data.thumbnail || video.thumbnail;
             }
-            const video = search.videos[0];
-            videoUrl = video.url;
-            title = video.title || title;
-            thumbnail = video.thumbnail || thumbnail;
-            duration = video.timestamp || duration;
-            author = video.author?.name || author;
-            views = video.views ? video.views.toLocaleString() : views;
+        } catch (apiErr) {
+            console.error('[PLAY] API Error:', apiErr.message);
+        }
+
+        // ============ CHECK DOWNLOAD URL ============
+        if (!downloadUrl) {
+            await conn.sendMessage(from, { 
+                react: { text: "⚠️", key: m.key } 
+            });
+            return reply(`╭─❖ *⚠️ DOWNLOAD FAILED* ❖─⬣
+│
+│  ✧ Could not fetch audio
+│  ✧ Try again or use different song
+│
+╰───────────────⬣`);
+        }
+
+        // ============ BEAUTIFUL DESIGN WITH MENTION ============
+        const caption = `╭─❖ *🎵 SONG FOUND* ❖─⬣
+│
+│  ✧ *Title:* ${songTitle}
+│  ✧ *Artist:* ${author}
+│  ✧ *Duration:* ${duration}
+│  ✧ *Views:* ${views}
+│  ✧ *Requested By:* @${sender.split("@")[0]}
+│
+╰───────────────⬣
+> 🎶 Enjoy the music!`;
+
+        // ============ SEND THUMBNAIL WITH CAPTION ============
+        if (thumbnail) {
+            await conn.sendMessage(from, {
+                image: { url: thumbnail },
+                caption: caption,
+                mentions: [sender]
+            });
         } else {
-            const videoId = query.match(/([a-zA-Z0-9_-]{11})/i)?.[1];
-            const search = await yts({ videoId: videoId });
-            if (search) {
-                title = search.title || title;
-                thumbnail = search.thumbnail || thumbnail;
-                duration = search.timestamp || duration;
-                videoUrl = search.url || query;
-                author = search.author?.name || author;
-                views = search.views ? search.views.toLocaleString() : views;
-            }
+            await reply(caption);
         }
 
-        // Dynamic Request Execution 
-        const apiResult = await getAudioFromApi(videoUrl);
+        // ============ DOWNLOADING REACTION ============
+        await conn.sendMessage(from, { 
+            react: { text: "⏳", key: m.key } 
+        });
+
+        // ============ SEND AUDIO ============
+        const fileName = `${songTitle.replace(/[^\w\s\-]/g, '')}.mp3`;
         
-        if (!apiResult.success || !apiResult.audioUrl) {
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return await reply("❌ *Audio processing server is currently down!*");
-        }
-        
-        const audioUrl = apiResult.audioUrl;
-        const safeTitle = (apiResult.title || title).replace(/[<>:"/\\|?*]/g, '_').trim();
-
-        // New Structured Output Layout requested by User
-        const infoMessage = `*${safeTitle}*\n\n` +
-                            `👤 *Channel:* ${author}\n` +
-                            `⏱ *Duration:* ${duration}\n` +
-                            `👁 *Views:* ${views}\n\n` +
-                            `> ⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪⚡`;
-
-        // Step 1: Send Details Card with Image
-        const sentInfo = await conn.sendMessage(from, {
-            image: { url: thumbnail },
-            caption: infoMessage,
-            contextInfo: {
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: "120363423196146172@newsletter",
-                    newsletterName: "𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪",
-                    serverMessageId: 2,
-                },
-            },
-        }, { quoted: m });
-
-        // Step 2: Send Audio File quoting the details card above
         await conn.sendMessage(from, {
-            audio: { url: audioUrl },
-            mimetype: 'audio/mpeg',
-            fileName: `${safeTitle}.mp3`
-        }, { quoted: sentInfo });
+            audio: { url: downloadUrl },
+            mimetype: "audio/mpeg",
+            ptt: false,
+            fileName: fileName
+        });
 
-        // Success Reaction Completion
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
+        // ============ SUCCESS REACTION ============
+        await conn.sendMessage(from, { 
+            react: { text: "✅", key: m.key } 
+        });
 
-    } catch (e) {
-        console.error("Advanced Music Play Error:", e);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+        // ============ SUCCESS MESSAGE ============
+        await reply(`╭─❖ *✅ DOWNLOADED* ❖─⬣
+│
+│  ✧ *Song:* ${songTitle}
+│  ✧ *Artist:* ${author}
+│  ✧ *Duration:* ${duration}
+│
+╰───────────────⬣
+> 🎵 ZAIDI-MD`);
+
+    } catch (err) {
+        console.error("PLAY ERROR:", err);
+        await conn.sendMessage(from, { 
+            react: { text: "❌", key: m.key } 
+        });
+        return reply(`╭─❖ *❌ ERROR* ❖─⬣
+│
+│  ✧ Something went wrong!
+│  ✧ Please try again later
+│
+╰───────────────⬣
+> 🔧 ZAIDI-MD`);
     }
 });
+
+// ============ FORMAT VIEWS FUNCTION ============
+function formatViews(views) {
+    if (!views) return "N/A";
+    const num = parseInt(views);
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toString();
+}
