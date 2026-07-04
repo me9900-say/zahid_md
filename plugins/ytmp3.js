@@ -2,13 +2,24 @@ const { cmd } = require('../zaidi');   // ✅ Sahi import
 const axios = require('axios');        // Axios for API requests
 const yts = require('yt-search');     // YouTube search library
 
-// ===== YouTube Downloader API =====
-async function downloadYTAudio(url) {
+// ===== Primary Downloader (Aapki API) =====
+async function jawadTechAPI(url) {
     try {
         let res = await axios.get(`https://jawad-tech.vercel.app/download/ytdl?url=${url}`);
-        return res.data.result?.audio || res.data.data?.audio || null;
-    } catch (error) {
-        console.error("API Fetch Error:", error);
+        // API response ke dono mumkin tareeqay check kar rahe hain
+        return res.data?.result?.audio || res.data?.data?.audio || res.data?.result?.downloadUrl || null;
+    } catch {
+        return null;
+    }
+}
+
+// ===== Backup Downloader (Agar primary fail ho jaye) =====
+async function backupAPI(url) {
+    try {
+        // Ek reliable public api fallback ke liye
+        let res = await axios.get(`https://api.dreaded.site/download/ytdl?url=${url}`);
+        return res.data?.result?.audio || res.data?.result?.downloadUrl || null;
+    } catch {
         return null;
     }
 }
@@ -23,20 +34,20 @@ cmd({
 },
 async (conn, mek, m, { from, args, q, reply, quoted }) => {
 
-    // 1️⃣ Check if input is provided (using 'q' to get full text)
+    // 1️⃣ Check if input is provided
     if (!q) {
-        return reply("❌ Link ya song ka naam do!\n\nExample 1: .play https://youtu.be/xxxxxx\nExample 2: .play pal pal");
+        return reply("❌ Link ya song ka naam do!\n\nExample: .play pal pal");
     }
 
     let url = q.trim();
+    let videoTitle = "ZAIDI-MD Audio";
 
-    // 2️⃣ Check if input is NOT a link (Yani agar user ne naam search kiya ha)
+    // 2️⃣ Check if input is Text (Search query)
     if (!url.includes("youtube.com") && !url.includes("youtu.be")) {
         
         await reply(`⏳ Searching for *"${q}"* on YouTube...`);
         
         try {
-            // YouTube pe search karo
             let searchResult = await yts(q);
             let video = searchResult.videos[0]; // Pehli video uthao
 
@@ -44,7 +55,8 @@ async (conn, mek, m, { from, args, q, reply, quoted }) => {
                 return reply("❌ Koi video nahi mili. Kuch aur search karo!");
             }
 
-            url = video.url; // Naam ki jagah ab hume video ka link mil gaya
+            url = video.url; // Video link mil gaya
+            videoTitle = video.title; // Title track karne ke liye
             
         } catch (searchError) {
             console.error("YT Search Error:", searchError);
@@ -53,21 +65,28 @@ async (conn, mek, m, { from, args, q, reply, quoted }) => {
     }
 
     // 3️⃣ Status message for downloading
-    await reply("⏳ *ZAIDI-MD* is downloading audio... Please wait.");
+    await reply(`⏳ Downloading: *${videoTitle}*... Please wait.`);
 
     try {
-        // Download using your API
-        let audioUrl = await downloadYTAudio(url);
+        // Pehle aapki API try karega
+        let audioUrl = await jawadTechAPI(url);
 
+        // Agar aapki API fail hui, toh backup API try karega
         if (!audioUrl) {
-            return reply("❌ Download failed. Maybe the link is invalid or the API is currently down.");
+            console.log("Primary API failed, trying backup...");
+            audioUrl = await backupAPI(url);
+        }
+
+        // Agar dono fail ho jayein
+        if (!audioUrl) {
+            return reply("❌ Download failed. Dono APIs down hain ya link me koi masala hai.");
         }
 
         // 4️⃣ Send Audio File
         await conn.sendMessage(from, {
             audio: { url: audioUrl },
             mimetype: 'audio/mpeg',
-            filename: 'zaidi-audio.mp3'
+            filename: `${videoTitle}.mp3`
         }, { quoted: mek });
 
     } catch (error) {
