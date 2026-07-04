@@ -958,3 +958,39 @@ cmd({
         return reply("❌ Failed to toggle anti-link!");
     }
 });
+
+// ==================== DELETE ====================
+cmd({
+    pattern: "del",
+    alias: ["delete"],
+    desc: "Delete a quoted message for everyone",
+    category: "admin",
+    react: "🗑️",
+    filename: __filename
+}, async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, reply }) => {
+    try {
+        if (!isGroup) return reply("❌ This command only works in groups.");
+        if (!isAdmins) return reply("❌ Only group admins can use this command.");
+        if (!isBotAdmins) return reply("❌ I need admin rights to delete messages.");
+        
+        // Check if a message is actually quoted
+        if (!m.quoted) {
+            return reply("❌ Reply to the message you want to delete!");
+        }
+
+        // Target message keys for deletion
+        const key = {
+            remoteJid: from,
+            fromMe: m.quoted.fromMe,
+            id: m.quoted.id,
+            participant: m.quoted.participant || m.quoted.sender
+        };
+
+        // Send delete packet
+        await conn.sendMessage(from, { delete: key });
+
+    } catch (error) {
+        console.error("Delete error:", error);
+        reply("❌ Failed to delete the message.");
+    }
+});
