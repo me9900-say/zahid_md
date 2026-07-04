@@ -1,6 +1,4 @@
-const axios = require("axios");
 const { cmd } = require("../zaidi");
-const { fetchGif, gifToVideo } = require("../lib/fetchGif");
 
 cmd({
     pattern: "marige",
@@ -19,40 +17,38 @@ cmd({
     try {
         if (!isGroup) return reply("❌ This command works only in groups.");
 
-        if (!groupMetadata?.participants)
-            return reply("❌ Group participants not found.");
-
-        const botJid = conn.user?.id || conn.user?.jid || "";
-
         const members = groupMetadata.participants
             .map(v => v.id)
-            .filter(id => id !== sender && id !== botJid);
+            .filter(id => id !== (conn.user?.id || conn.user?.jid || ""));
 
-        if (members.length < 1)
-            return reply("❌ Not enough members.");
+        if (members.length < 2)
+            return reply("❌ Not enough members in this group!");
 
-        const partner = members[Math.floor(Math.random() * members.length)];
+        // Random Groom
+        const groom = members[Math.floor(Math.random() * members.length)];
 
-        const { data } = await axios.get("https://api.waifu.pics/sfw/hug");
+        // Random Bride (Different from Groom)
+        let bride;
+        do {
+            bride = members[Math.floor(Math.random() * members.length)];
+        } while (bride === groom);
 
-        const gif = await fetchGif(data.url);
-        const video = await gifToVideo(gif);
+        const text = `💍 *Wedding Ceremony* 💍
 
-        const text = `💍 *Shadi Mubarak!* 💒
+✨ آج گروپ میں شادی طے پا گئی!
 
-👰 @${sender.split("@")[0]}
-❤️
-🤵 @${partner.split("@")[0]}
+🤵 *دولہا:* @${groom.split("@")[0]}
+👰 *دلہن:* @${bride.split("@")[0]}
 
-✨ May Allah bless you both.`;
+💐 اللہ تعالیٰ دونوں کی جوڑی سلامت رکھے، خوشیاں، محبت اور برکت عطا فرمائے۔ آمین! ❤️
+
+🎉 *Everyone, congratulate the newly married couple!* 🥳`;
 
         await conn.sendMessage(
             mek.chat,
             {
-                video,
-                gifPlayback: true,
-                caption: text,
-                mentions: [sender, partner]
+                text,
+                mentions: [groom, bride]
             },
             { quoted: mek }
         );
