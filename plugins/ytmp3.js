@@ -2,16 +2,16 @@ const { cmd } = require('../zaidi');   // ✅ Sahi import
 const axios = require('axios');        // Axios for API requests
 const yts = require('yt-search');     // YouTube search library
 
-// ===== Faizan API Downloader =====
+// ===== Fast Faizan API Downloader =====
 async function downloadYTAudio(url) {
     try {
-        // URL ko encode kar rahe hain taake API me sahi se pass ho
-        let res = await axios.get(`https://faizan-api.vercel.app/api/ytmp3?url=${encodeURIComponent(url)}`);
+        // Naya endpoint aur format=mp3 query parameter ke sath request
+        let res = await axios.get(`https://faizan-api.vercel.app/api/ytdown?url=${encodeURIComponent(url)}&format=mp3`);
         
-        // Aapki di hui JSON structure ke mutabiq direct link extract kar rahe hain
-        return res.data?.result?.download || null;
+        // Naye JSON structure ke mutabiq direct downloadURL extract kar rahe hain
+        return res.data?.downloadURL || null;
     } catch (error) {
-        console.error("Faizan API Fetch Error:", error);
+        console.error("Faizan Fast API Fetch Error:", error);
         return null;
     }
 }
@@ -19,7 +19,7 @@ async function downloadYTAudio(url) {
 cmd({
     pattern: "play",                  // Primary command
     alias: ["ytmp3", "yta", "song"],  // Aliases
-    desc: "Download YouTube Audio by Link or Search Name",
+    desc: "Download YouTube Audio Fast by Link or Search Name",
     category: "downloader",
     react: "🎶",
     filename: __filename
@@ -57,14 +57,14 @@ async (conn, mek, m, { from, args, q, reply, quoted }) => {
     }
 
     // 3️⃣ Status message for downloading
-    await reply(`⏳ Downloading: *${videoTitle}*... Please wait.`);
+    await reply(`⏳ Downloading Fast: *${videoTitle}*... Please wait.`);
 
     try {
-        // Faizan API se download link uthao
+        // Nayi Fast API se download link uthao
         let audioUrl = await downloadYTAudio(url);
 
         if (!audioUrl) {
-            return reply("❌ Download failed! Faizan API ne link generate nahi kiya ya limit reach ho gayi.");
+            return reply("❌ Download failed! Fast API ne response nahi diya.");
         }
 
         // 4️⃣ Send Audio File
