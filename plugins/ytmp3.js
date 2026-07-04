@@ -112,7 +112,7 @@ cmd({
         const audioUrl = apiResult.audioUrl;
         const safeTitle = (apiResult.title || title).replace(/[<>:"/\\|?*]/g, '_').trim();
 
-        // New Structured Output Layout requested by User
+        // New Structured Output Layout
         const infoMessage = `*${safeTitle}*\n\n` +
                             `👤 *Channel:* ${author}\n` +
                             `⏱ *Duration:* ${duration}\n` +
