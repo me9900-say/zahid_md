@@ -2,6 +2,7 @@ const { cmd } = require('../zaidi');
 const { sleep } = require('../lib/functions');
 const config = require('../config');
 const { fakevCard } = require('../lib/fakevCard');
+const { safeDecode } = require('../lib/permissions');
 
 // ==================== REQUEST LIST ====================
 cmd({
@@ -163,14 +164,43 @@ cmd({
     category: "admin",
     react: "🗑️",
     filename: __filename
-}, async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, quoted, mentionedJid, reply }) => {
+}, async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, isOwner, groupAdmins, reply }) => {
     try {
         if (!isGroup) return reply("❌ This command only works in groups.");
         if (!isAdmins) return reply("❌ Only group admins can use this command.");
         if (!isBotAdmins) return reply("❌ I need admin rights to remove members.");
 
-        const target = quoted?.sender || mentionedJid?.[0];
-        if (!target) return reply("❌ Reply to a message or mention a user!");
+        // ---- Correct target resolution ----
+        // NEVER use ctx.quoted here — main.js sets it to `mek` (the raw
+        // incoming command message itself, not the message being replied
+        // to). Using `quoted.sender` on that object returns the *command
+        // sender's* JID — and in self-bot mode (owner controlling the bot
+        // from their own WhatsApp app), that JID IS the bot's own JID,
+        // which is exactly why the bot ended up kicking itself.
+        // ctx.mentionedJid is also never populated by main.js, so it was
+        // always undefined. Pull both values directly off the serialized
+        // `m` object instead, which actually carries the real data:
+        //   - m.quoted.participant  -> the JID of whoever sent the
+        //                              message being replied to
+        //   - m.msg.contextInfo.mentionedJid -> array of tagged JIDs
+        const mentioned = m.msg?.contextInfo?.mentionedJid || [];
+        const target = m.quoted?.participant || mentioned[0];
+
+        if (!target) {
+            return reply("❌ Reply to a user's message or tag them (@user) to kick!");
+        }
+
+        // ---- Safety checks ----
+        const botJid = safeDecode(conn.user.id);
+        const targetJid = safeDecode(target);
+
+        if (targetJid === botJid) {
+            return reply("❌ I can't kick myself!");
+        }
+
+        if (Array.isArray(groupAdmins) && groupAdmins.includes(targetJid) && !isOwner) {
+            return reply("❌ I can't kick another admin!");
+        }
 
         await conn.groupParticipantsUpdate(from, [target], "remove");
 
