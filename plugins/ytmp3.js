@@ -1,7 +1,6 @@
 const axios = require("axios");
 const yts = require("yt-search");
 const { cmd } = require("../zaidi");
-const config = require("../config");
 
 cmd({
     pattern: "play",
@@ -21,7 +20,7 @@ async (conn, mek, m, { from, args, reply, sender }) => {
             return reply(`╭─❖ *🎵 PLAY ENGINE* ❖─⬣
 │
 │  ✧ *Usage:* .play <song name>
-│  ✧ *Example:* .play Pal Pal Dil Ke Paas
+│  ✧ *Example:* .play headlights
 │  ✧ *Aliases:* song, music, ytmp3
 │
 ╰───────────────⬣
@@ -98,17 +97,18 @@ async (conn, mek, m, { from, args, reply, sender }) => {
 │  ✧ *Requested By:* @${sender.split("@")[0]}
 │
 ╰───────────────⬣
-> 🎶 Enjoy the music!`;
+> 🎶 Downloading audio...`;
 
         // ============ SEND THUMBNAIL WITH CAPTION ============
+        let sentThumbnail;
         if (thumbnail) {
-            await conn.sendMessage(from, {
+            sentThumbnail = await conn.sendMessage(from, {
                 image: { url: thumbnail },
                 caption: caption,
                 mentions: [sender]
             });
         } else {
-            await reply(caption);
+            sentThumbnail = await reply(caption);
         }
 
         // ============ DOWNLOADING REACTION ============
@@ -116,7 +116,7 @@ async (conn, mek, m, { from, args, reply, sender }) => {
             react: { text: "⏳", key: m.key } 
         });
 
-        // ============ SEND AUDIO ============
+        // ============ SEND AUDIO (REPLY TO THUMBNAIL) ============
         const fileName = `${songTitle.replace(/[^\w\s\-]/g, '')}.mp3`;
         
         await conn.sendMessage(from, {
@@ -124,22 +124,12 @@ async (conn, mek, m, { from, args, reply, sender }) => {
             mimetype: "audio/mpeg",
             ptt: false,
             fileName: fileName
-        });
+        }, { quoted: sentThumbnail }); // Thumbnail wale message ko reply karega
 
         // ============ SUCCESS REACTION ============
         await conn.sendMessage(from, { 
             react: { text: "✅", key: m.key } 
         });
-
-        // ============ SUCCESS MESSAGE ============
-        await reply(`╭─❖ *✅ DOWNLOADED* ❖─⬣
-│
-│  ✧ *Song:* ${songTitle}
-│  ✧ *Artist:* ${author}
-│  ✧ *Duration:* ${duration}
-│
-╰───────────────⬣
-> 🎵 ZAIDI-MD`);
 
     } catch (err) {
         console.error("PLAY ERROR:", err);
