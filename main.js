@@ -416,9 +416,10 @@ async function zaidiPair(number, res = null) {
                         groupMetadata = await conn.groupMetadata(from);
                         groupName = groupMetadata.subject;
                         participants = groupMetadata.participants;
-                        groupAdmins = getGroupAdmins(participants);
-                        isBotAdmins = groupAdmins.includes(botNumber2);
-                        isAdmins = groupAdmins.includes(sender);
+                        const perms = getGroupPermissions({ conn, groupMetadata, sender });
+                        groupAdmins = perms.groupAdmins;
+                        isBotAdmins = perms.isBotAdmins;
+                        isAdmins = perms.isAdmins;
                     } catch (_) {}
                 }
 
