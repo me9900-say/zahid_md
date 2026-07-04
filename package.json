@@ -26,7 +26,7 @@
     "denethdev-ytmp3": "1.0.3",
     "cheerio": "latest",
     "ruhend-scraper": "9.0.1",
-    "yt-search": "2.12.1",
+    "yt-search": "2.13.1",
     "fluent-ffmpeg": "^2.1.2",
     "wa-sticker-formatter": "^4.4.4",
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
