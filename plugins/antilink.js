@@ -7,20 +7,13 @@ function toFancy(text) {
     return text.toLowerCase().split('').map(c => map[c] || c).join('');
 }
 
-// ✅ Bot admin check — fresh group metadata se, reliable tarika
-async function isBotAdmin(conn, from) {
-    try {
-        const meta = await conn.groupMetadata(from);
-        const rawId = conn.user.id;
-        // Format: 923xxxxxxx@s.whatsapp.net
-        const botJid = rawId.includes(':') ? rawId.split(':')[0] + '@s.whatsapp.net' : rawId;
-        return meta.participants.some(p =>
-            p.id === botJid && (p.admin === 'admin' || p.admin === 'superadmin')
-        );
-    } catch (_) {
-        return false;
-    }
-}
+// Bot admin status is now computed once per message in main.js via
+// lib/permissions.js (getGroupPermissions) and passed in as `isBotAdmins`.
+// The local isBotAdmin() re-implementation here used to compare only the
+// phone-number JID form of the bot's id against `p.id`, which silently
+// failed whenever WhatsApp represented the bot or the participant with a
+// LID JID instead — i.e. it could disagree with the real, already-correct
+// admin status. Removing it keeps admin detection consistent everywhere.
 
 cmd({
     pattern: 'antilink',
@@ -29,7 +22,7 @@ cmd({
     category: 'group',
     react: '🔗',
     filename: __filename
-}, async (conn, mek, m, { from, isGroup, isAdmins, args, isOwner, reply }) => {
+}, async (conn, mek, m, { from, isGroup, isAdmins, isBotAdmins, args, isOwner, reply }) => {
 
     if (!isGroup) return reply(`❌ ${toFancy('Yeh command sirf group mein kaam karti hai')}`);
     if (!isAdmins && !isOwner) return reply(`❌ ${toFancy('Sirf group admins use kar sakte hain')}`);
@@ -37,8 +30,7 @@ cmd({
     const value = args[0]?.toLowerCase();
     const current = await getAntilinkSettings(from);
 
-    // ✅ Fresh check — passed isBotAdmins par rely nahi karte
-    const botAdminStatus = await isBotAdmin(conn, from);
+    const botAdminStatus = !!isBotAdmins;
 
     if (value === 'on') {
         await setAntilinkSettings(from, true, current.maxWarns || 2);
