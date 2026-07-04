@@ -2,50 +2,37 @@ const { cmd } = require('../zaidi'); // Custom bot handler matching your instanc
 const axios = require('axios');
 const yts = require('yt-search');
 
-// ============ MULTI-API SYSTEM WITH FAIZAN API AS PRIMARY ============
-const APIS = [
-    {
-        name: "Faizan API",
-        url: (ytLink) => `https://faizan-api.vercel.app/api/ytmp3?url=${encodeURIComponent(ytLink)}`,
-        getAudioUrl: (data) => {
-            if (data?.status && data?.result?.download) {
-                return data.result.download;
-            }
-            return null;
-        },
-        getTitle: (data) => data?.result?.title
-    }
-];
+// ============ SINGLE API SYSTEM ============
+const API_URL = (ytLink) => `https://yt-dl.officialhectormanuel.workers.dev/?url=${encodeURIComponent(ytLink)}`;
 
-// ============ REUSABLE ADVANCED API LOOP HANDLING ============
+// ============ REUSABLE AUDIO FETCH FUNCTION ============
 async function getAudioFromApi(youtubeUrl) {
-    for (const api of APIS) {
-        try {
-            console.log(`📡 Fetching via ${api.name}...`);
-            const response = await axios.get(api.url(youtubeUrl), { timeout: 30000 });
-            const audioUrl = api.getAudioUrl(response.data);
-            
-            if (audioUrl) {
-                console.log(`✅ ${api.name} Success!`);
-                return {
-                    success: true,
-                    audioUrl: audioUrl,
-                    title: api.getTitle(response.data) || null,
-                    apiUsed: api.name
-                };
-            }
-        } catch (error) {
-            console.log(`❌ ${api.name} Failed:`, error.message);
+    try {
+        console.log(`📡 Fetching audio...`);
+        const response = await axios.get(API_URL(youtubeUrl), { timeout: 30000 });
+        
+        // Check if response has audio URL
+        if (response.data && response.data.audioUrl) {
+            console.log(`✅ Audio fetched successfully!`);
+            return {
+                success: true,
+                audioUrl: response.data.audioUrl,
+                title: response.data.title || null,
+                apiUsed: "HectorManuel API"
+            };
         }
+        return { success: false, error: "No audio URL in response" };
+    } catch (error) {
+        console.log(`❌ API Failed:`, error.message);
+        return { success: false, error: error.message };
     }
-    return { success: false, error: "All backend stream sources failed" };
 }
 
 // ============ MAIN PLAY / YTMP3 PLUGIN COMMAND ============
 cmd({
     pattern: "ytmp3",
     alias: ["play", "song", "audio", "naat"],
-    desc: "🎵 Instant Download YouTube audio via multi-engine layout",
+    desc: "🎵 Instant Download YouTube audio",
     category: "download",
     react: "🎵",
     filename: __filename
