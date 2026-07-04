@@ -1,151 +1,77 @@
-const { cmd } = require('../zaidi'); // Custom bot handler matching your instance path
-const axios = require('axios');
-const yts = require('yt-search');
+const { cmd } = require('../zaidi');   // ✅ Sahi import
+const axios = require('axios');        // Axios for API requests
+const yts = require('yt-search');     // YouTube search library
 
-// ============ MULTI-API SYSTEM WITH FAIZAN API AS PRIMARY ============
-const APIS = [
-    {
-        name: "Faizan API",
-        url: (ytLink) => `https://faizan-api.vercel.app/api/ytmp3?url=${encodeURIComponent(ytLink)}`,
-        getAudioUrl: (data) => {
-            if (data?.status && data?.result?.download) {
-                return data.result.download;
-            }
-            return null;
-        },
-        getTitle: (data) => data?.result?.title
+// ===== YouTube Downloader API =====
+async function downloadYTAudio(url) {
+    try {
+        let res = await axios.get(`https://jawad-tech.vercel.app/download/ytdl?url=${url}`);
+        return res.data.result?.audio || res.data.data?.audio || null;
+    } catch (error) {
+        console.error("API Fetch Error:", error);
+        return null;
     }
-];
-
-// ============ REUSABLE ADVANCED API LOOP HANDLING ============
-async function getAudioFromApi(youtubeUrl) {
-    for (const api of APIS) {
-        try {
-            console.log(`📡 Fetching via ${api.name}...`);
-            const response = await axios.get(api.url(youtubeUrl), { timeout: 30000 });
-            const audioUrl = api.getAudioUrl(response.data);
-            
-            if (audioUrl) {
-                console.log(`✅ ${api.name} Success!`);
-                return {
-                    success: true,
-                    audioUrl: audioUrl,
-                    title: api.getTitle(response.data) || null,
-                    apiUsed: api.name
-                };
-            }
-        } catch (error) {
-            console.log(`❌ ${api.name} Failed:`, error.message);
-        }
-    }
-    return { success: false, error: "All backend stream sources failed" };
 }
 
-// ============ MAIN PLAY / YTMP3 PLUGIN COMMAND ============
 cmd({
-    pattern: "ytmp3",
-    alias: ["play", "song", "audio", "naat"],
-    desc: "🎵 Instant Download YouTube audio via multi-engine layout",
-    category: "download",
-    react: "🎵",
+    pattern: "play",                  // Primary command
+    alias: ["ytmp3", "yta", "song"],  // Aliases
+    desc: "Download YouTube Audio by Link or Search Name",
+    category: "downloader",
+    react: "🎶",
     filename: __filename
-}, async (conn, mek, m, { from, text, reply }) => {
+},
+async (conn, mek, m, { from, args, q, reply, quoted }) => {
+
+    // 1️⃣ Check if input is provided (using 'q' to get full text)
+    if (!q) {
+        return reply("❌ Link ya song ka naam do!\n\nExample 1: .play https://youtu.be/xxxxxx\nExample 2: .play pal pal");
+    }
+
+    let url = q.trim();
+
+    // 2️⃣ Check if input is NOT a link (Yani agar user ne naam search kiya ha)
+    if (!url.includes("youtube.com") && !url.includes("youtu.be")) {
+        
+        await reply(`⏳ Searching for *"${q}"* on YouTube...`);
+        
+        try {
+            // YouTube pe search karo
+            let searchResult = await yts(q);
+            let video = searchResult.videos[0]; // Pehli video uthao
+
+            if (!video) {
+                return reply("❌ Koi video nahi mili. Kuch aur search karo!");
+            }
+
+            url = video.url; // Naam ki jagah ab hume video ka link mil gaya
+            
+        } catch (searchError) {
+            console.error("YT Search Error:", searchError);
+            return reply("⚠️ Search karne me masala aya, direct link try karein.");
+        }
+    }
+
+    // 3️⃣ Status message for downloading
+    await reply("⏳ *ZAIDI-MD* is downloading audio... Please wait.");
 
     try {
-        const query = text ? text.trim() : '';
+        // Download using your API
+        let audioUrl = await downloadYTAudio(url);
 
-        if (!query) {
-            return await reply(`╭━〔 🎵 MUSIC ENGINE 〕━⬣
-┃ ⚠️ Example: .play pal pal 
-╰━━━━━━━━━━━━━━━━━━⬣
-> 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪`);
+        if (!audioUrl) {
+            return reply("❌ Download failed. Maybe the link is invalid or the API is currently down.");
         }
 
-        // Processing Reaction
-        await conn.sendMessage(from, { react: { text: '⏳', key: m.key } });
-
-        // Regex configuration for matching standard URLs
-        const isYoutubeLink = /(?:https?:\/\/)?(?:youtu\.be\/|(?:www\.|m\.)?youtube\.com\/(?:watch\?v=|v\/|embed\/|shorts\/)?)([a-zA-Z0-9_-]{11})/i.test(query);
-
-        let videoUrl = query;
-        let title = 'Unknown YouTube Song';
-        let thumbnail = 'https://up6.cc/2026/05/177971006919991.png';
-        let duration = 'Unknown';
-        let author = 'YouTube Audio';
-        let views = '0';
-
-        // Scraping data via internal yt-search context parser
-        if (!isYoutubeLink) {
-            const search = await yts(query);
-            if (!search?.videos?.length) {
-                await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-                return await reply("❌ *No matching results found!*");
-            }
-            const video = search.videos[0];
-            videoUrl = video.url;
-            title = video.title || title;
-            thumbnail = video.thumbnail || thumbnail;
-            duration = video.timestamp || duration;
-            author = video.author?.name || author;
-            views = video.views ? video.views.toLocaleString() : views;
-        } else {
-            const videoId = query.match(/([a-zA-Z0-9_-]{11})/i)?.[1];
-            const search = await yts({ videoId: videoId });
-            if (search) {
-                title = search.title || title;
-                thumbnail = search.thumbnail || thumbnail;
-                duration = search.timestamp || duration;
-                videoUrl = search.url || query;
-                author = search.author?.name || author;
-                views = search.views ? search.views.toLocaleString() : views;
-            }
-        }
-
-        // Dynamic Request Execution 
-        const apiResult = await getAudioFromApi(videoUrl);
-        
-        if (!apiResult.success || !apiResult.audioUrl) {
-            await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
-            return await reply("❌ *Audio processing server is currently down!*");
-        }
-        
-        const audioUrl = apiResult.audioUrl;
-        const safeTitle = (apiResult.title || title).replace(/[<>:"/\\|?*]/g, '_').trim();
-
-        // New Structured Output Layout
-        const infoMessage = `*${safeTitle}*\n\n` +
-                            `👤 *Channel:* ${author}\n` +
-                            `⏱ *Duration:* ${duration}\n` +
-                            `👁 *Views:* ${views}\n\n` +
-                            `> ⚡ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪⚡`;
-
-        // Step 1: Send Details Card with Image
-        const sentInfo = await conn.sendMessage(from, {
-            image: { url: thumbnail },
-            caption: infoMessage,
-            contextInfo: {
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: "120363423196146172@newsletter",
-                    newsletterName: "𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪",
-                    serverMessageId: 2,
-                },
-            },
-        }, { quoted: m });
-
-        // Step 2: Send Audio File quoting the details card above
+        // 4️⃣ Send Audio File
         await conn.sendMessage(from, {
             audio: { url: audioUrl },
             mimetype: 'audio/mpeg',
-            fileName: `${safeTitle}.mp3`
-        }, { quoted: sentInfo });
+            filename: 'zaidi-audio.mp3'
+        }, { quoted: mek });
 
-        // Success Reaction Completion
-        await conn.sendMessage(from, { react: { text: '✅', key: m.key } });
-
-    } catch (e) {
-        console.error("Advanced Music Play Error:", e);
-        await conn.sendMessage(from, { react: { text: '❌', key: m.key } });
+    } catch (error) {
+        console.error("Play Command Error:", error);
+        return reply("⚠️ Kuch gadbad ho gayi! Try again later.");
     }
 });
