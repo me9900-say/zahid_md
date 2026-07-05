@@ -53,7 +53,6 @@ async (conn, mek, m, { from, args, reply, sender }) => {
         let author = video.author?.name || "Unknown Artist";
         let views = video.views ? formatViews(video.views) : "N/A";
 
-        // ============ FETCH AUDIO FROM API ============
         try {
             const apiResponse = await axios.get(
                 `https://faizan-api.vercel.app/api/ytdown?url=${encodeURIComponent(video.url)}&format=mp3`,
@@ -81,7 +80,6 @@ async (conn, mek, m, { from, args, reply, sender }) => {
 ╰───────────────⬣`);
         }
 
-        // ============ CAPTION WITH MENTION ============
         const caption = `╭─❖ *🎵 SONG FOUND* ❖─⬣
 │
 │  ✧ *Title:* ${songTitle}
@@ -93,7 +91,6 @@ async (conn, mek, m, { from, args, reply, sender }) => {
 ╰───────────────⬣
 > 🎶 Downloading audio...`;
 
-        // ============ SEND THUMBNAIL ============
         const thumbnailMsg = await conn.sendMessage(from, {
             image: { url: thumbnail },
             caption: caption,
@@ -104,25 +101,21 @@ async (conn, mek, m, { from, args, reply, sender }) => {
             react: { text: "⏳", key: m.key } 
         });
 
-        // ============ SEND AUDIO WITH PROPER FORMAT ============
+        // ============ 🔥 FIX: AUDIO DOWNLOAD KARKE BUFFER MEIN SEND KARENGE ============
         const fileName = `${songTitle.replace(/[^\w\s\-]/g, '')}.mp3`;
         
-        // 🔥 FIX: Audio ko properly format karke bhejna
-        await conn.sendMessage(from, {
-            audio: { 
-                url: downloadUrl,
-                // Force download and convert
-                mimetype: 'audio/mpeg',
-                fileName: fileName
-            },
-            mimetype: 'audio/mpeg',
-            ptt: false,
-            fileName: fileName
-        }, { 
-            quoted: thumbnailMsg,
-            // Ensure proper audio format
-            audio: true
+        // Audio download karo
+        const audioResponse = await axios.get(downloadUrl, {
+            responseType: 'arraybuffer'
         });
+        
+        // Buffer mein convert karo aur send karo
+        await conn.sendMessage(from, {
+            audio: Buffer.from(audioResponse.data),
+            mimetype: 'audio/mpeg',
+            fileName: fileName,
+            ptt: false
+        }, { quoted: thumbnailMsg });
 
         await conn.sendMessage(from, { 
             react: { text: "✅", key: m.key } 
