@@ -1,12 +1,14 @@
 const axios = require("axios");
 const yts = require("yt-search");
 const { cmd } = require("../zaidi");
+const fs = require('fs');
+const path = require('path');
 
 cmd({
     pattern: "play",
     alias: ["song", "ytmp3", "music", "audio", "gana"],
     react: "🎵",
-    desc: "YouTube search & MP3 download with beautiful design",
+    desc: "YouTube search & MP3 download",
     category: "downloader",
     use: ".play <song name>",
     filename: __filename
@@ -15,142 +17,69 @@ async (conn, mek, m, { from, args, reply, sender }) => {
     try {
         const query = args.join(" ");
         
-        // ============ CHECK QUERY ============
         if (!query) {
             return reply(`╭─❖ *🎵 PLAY ENGINE* ❖─⬣
 │
 │  ✧ *Usage:* .play <song name>
 │  ✧ *Example:* .play headlights
-│  ✧ *Aliases:* song, music, ytmp3
-│
-╰───────────────⬣
-> 🔥 ZAIDI-MD`);
-        }
-
-        // ============ SEARCHING REACTION ============
-        await conn.sendMessage(from, { 
-            react: { text: "🔍", key: m.key } 
-        });
-
-        // ============ SEARCH YOUTUBE ============
-        const search = await yts(query);
-        if (!search.videos || !search.videos.length) {
-            await conn.sendMessage(from, { 
-                react: { text: "❌", key: m.key } 
-            });
-            return reply(`╭─❖ *🔎 NO RESULTS* ❖─⬣
-│
-│  ✧ No matches found for:
-│  ✧ *"${query}"*
-│
-│  💡 Try:
-│  • Different keywords
-│  • Artist name + song
 │
 ╰───────────────⬣`);
+        }
+
+        await conn.sendMessage(from, { react: { text: "🔍", key: m.key } });
+
+        const search = await yts(query);
+        if (!search.videos || !search.videos.length) {
+            await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
+            return reply(`❌ No results found for: ${query}`);
         }
 
         const video = search.videos[0];
-        let downloadUrl = "";
-        let songTitle = video.title || "Unknown Song";
-        let thumbnail = video.thumbnail || "";
-        let duration = video.timestamp || "N/A";
-        let author = video.author?.name || "Unknown Artist";
-        let views = video.views ? formatViews(video.views) : "N/A";
-
-        // ============ FETCH AUDIO FROM API ============
-        try {
-            const apiResponse = await axios.get(
-                `https://faizan-api.vercel.app/api/ytdown?url=${encodeURIComponent(video.url)}&format=mp3`,
-                { timeout: 30000 }
-            );
-            
-            if (apiResponse.data && apiResponse.data.downloadURL) {
-                downloadUrl = apiResponse.data.downloadURL;
-                songTitle = apiResponse.data.title || video.title;
-                thumbnail = apiResponse.data.thumbnail || video.thumbnail;
-            }
-        } catch (apiErr) {
-            console.error('[PLAY] API Error:', apiErr.message);
+        
+        // Download audio as buffer
+        const apiResponse = await axios.get(
+            `https://faizan-api.vercel.app/api/ytdown?url=${encodeURIComponent(video.url)}&format=mp3`,
+            { timeout: 30000 }
+        );
+        
+        if (!apiResponse.data?.downloadURL) {
+            return reply('❌ Download failed!');
         }
 
-        // ============ CHECK DOWNLOAD URL ============
-        if (!downloadUrl) {
-            await conn.sendMessage(from, { 
-                react: { text: "⚠️", key: m.key } 
-            });
-            return reply(`╭─❖ *⚠️ DOWNLOAD FAILED* ❖─⬣
-│
-│  ✧ Could not fetch audio
-│  ✧ Try again or use different song
-│
-╰───────────────⬣`);
-        }
+        // Download the audio file as buffer
+        const audioResponse = await axios.get(apiResponse.data.downloadURL, {
+            responseType: 'arraybuffer'
+        });
 
-        // ============ BEAUTIFUL DESIGN WITH MENTION ============
         const caption = `╭─❖ *🎵 SONG FOUND* ❖─⬣
 │
-│  ✧ *Title:* ${songTitle}
-│  ✧ *Artist:* ${author}
-│  ✧ *Duration:* ${duration}
-│  ✧ *Views:* ${views}
+│  ✧ *Title:* ${video.title}
+│  ✧ *Artist:* ${video.author?.name || 'Unknown'}
+│  ✧ *Duration:* ${video.timestamp || 'N/A'}
 │  ✧ *Requested By:* @${sender.split("@")[0]}
 │
-╰───────────────⬣
-> 🎶 Downloading audio...`;
+╰───────────────⬣`;
 
-        // ============ SEND THUMBNAIL WITH CAPTION ============
-        let sentThumbnail;
-        if (thumbnail) {
-            sentThumbnail = await conn.sendMessage(from, {
-                image: { url: thumbnail },
-                caption: caption,
-                mentions: [sender]
-            });
-        } else {
-            sentThumbnail = await reply(caption);
-        }
-
-        // ============ DOWNLOADING REACTION ============
-        await conn.sendMessage(from, { 
-            react: { text: "⏳", key: m.key } 
+        // Send thumbnail
+        const thumbnailMsg = await conn.sendMessage(from, {
+            image: { url: video.thumbnail },
+            caption: caption,
+            mentions: [sender]
         });
 
-        // ============ SEND AUDIO (REPLY TO THUMBNAIL) ============
-        const fileName = `${songTitle.replace(/[^\w\s\-]/g, '')}.mp3`;
-        
+        // Send audio as buffer
         await conn.sendMessage(from, {
-            audio: { url: downloadUrl },
-            mimetype: "audio/mpeg",
-            ptt: false,
-            fileName: fileName
-        }, { quoted: sentThumbnail }); // Thumbnail wale message ko reply karega
+            audio: Buffer.from(audioResponse.data),
+            mimetype: 'audio/mpeg',
+            fileName: `${video.title.replace(/[^\w\s\-]/g, '')}.mp3`,
+            ptt: false
+        }, { quoted: thumbnailMsg });
 
-        // ============ SUCCESS REACTION ============
-        await conn.sendMessage(from, { 
-            react: { text: "✅", key: m.key } 
-        });
+        await conn.sendMessage(from, { react: { text: "✅", key: m.key } });
 
     } catch (err) {
         console.error("PLAY ERROR:", err);
-        await conn.sendMessage(from, { 
-            react: { text: "❌", key: m.key } 
-        });
-        return reply(`╭─❖ *❌ ERROR* ❖─⬣
-│
-│  ✧ Something went wrong!
-│  ✧ Please try again later
-│
-╰───────────────⬣
-> 🔧 ZAIDI-MD`);
+        await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
+        return reply(`❌ Error: ${err.message?.slice(0, 50) || 'Something went wrong!'}`);
     }
 });
-
-// ============ FORMAT VIEWS FUNCTION ============
-function formatViews(views) {
-    if (!views) return "N/A";
-    const num = parseInt(views);
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-    return num.toString();
-}
