@@ -243,7 +243,7 @@ async function zaidiPair(number, res = null) {
             browser: ['Mac OS', 'Safari', '10.15.7'],
             getMessage: async (key) => {
                 const msg = await zaidiStore.loadMessage(key.remoteJid, key.id);
-                return msg && msg.message ? msg.message : { conversation: '𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪' };
+                return msg?.message || undefined;
             }
         });
 
