@@ -7,7 +7,7 @@ cmd({
     pattern: "video",
     alias: ["ytmp4", "playvideo", "mp4", "vdo"],
     react: "🎥",
-    desc: "YouTube search & MP4 video play (2-in-1 Image + Video Mode with User Mention)",
+    desc: "YouTube search & MP4 video play (Updated API with Quality Auto-Fallback)",
     category: "download",
     use: ".video <video name>",
     filename: __filename
@@ -17,7 +17,7 @@ async (conn, mek, m, { from, args, reply, botNumber, sender }) => {
         const query = args.join(" ");
         if (!query) {
             const noQueryLayout = `*╭ׂ┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣─̇─̣─᛭*
-*│ ╌─̇─̣⊰🎥 𝐕𝐈𝐃𝐄𝐎 𝐏𝐋𝐀𝐘𝐄𝐑 ⊱┈─̇─̣╌*
+*│ ╌─̇─̣⊰🎥 𝐕𝐈𝐃𝐄𝐎 𝐏𝐋𝐀𝐘𝐄Ｒ ⊱┈─̇─̣╌*
 *│─̇─̣┄┄┄┄┄┄┄┄┄┄┄┄┄─̇─̣*
 *│* ❌ Please Provide A Video Name Or Link
 *│* 💡 Use: .video <video name>
@@ -31,6 +31,7 @@ async (conn, mek, m, { from, args, reply, botNumber, sender }) => {
         /* 🔍 Search YouTube */
         const search = await yts(query);
         if (!search.videos || !search.videos.length) {
+            await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
             return conn.sendMessage(from, { text: 
 `*╭ׂ┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣─̇─̣─᛭*
 *│* ❌ No results found for your query!
@@ -42,23 +43,29 @@ async (conn, mek, m, { from, args, reply, botNumber, sender }) => {
         let downloadUrl = "";
         let videoTitle = video.title;
 
-        /* 🚀 Fetch Video Link from Jawad Tech API */
+        /* 🚀 Fetch Video Link from New Hector Manuel API */
         try {
             const res = await axios.get(
-                `https://jawad-tech.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}`,
+                `https://yt-dl.officialhectormanuel.workers.dev/stream?id=${video.videoId}`,
                 { timeout: 25000 }
             );
             
-            // Checking common API response structures for video link
             if (res.data && res.data.status) {
-                downloadUrl = res.data.result?.download || res.data.result?.videoUrl || res.data.result?.url;
-                videoTitle = res.data.result?.title || video.title;
+                videoTitle = res.data.title || video.title;
+                const videosObj = res.data.videos;
+
+                if (videosObj) {
+                    // Pehle 450 quality check karega, agar nahi mili to baqi backup qualities check karega
+                    downloadUrl = videosObj["450"] || videosObj["338"] || videosObj["224"] || videosObj["136"] || Object.values(videosObj)[0];
+                }
             }
         } catch (apiErr) {
-            console.error('[video] Jawad Tech API error:', apiErr.message);
+            console.error('[video] New API error:', apiErr.message);
         }
 
+        // Agar specific workers api crash ho ya link na mile, to direct response handle hoga
         if (!downloadUrl) {
+            await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
             return conn.sendMessage(from, { text: 
 `*╭ׂ┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣─̇─̣─᛭*
 *│* ❌ Video link could not be fetched from API.
@@ -66,27 +73,27 @@ async (conn, mek, m, { from, args, reply, botNumber, sender }) => {
             }, { quoted: fakevCard });
         }
 
-        // 📝 کسٹم باکس ڈیزائن مع مینشن (Mentions)
+        // 📝 Custom Box Design with Mentions
         const videoCaption = `*╭ׂ┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣─̇─̣─᛭*
-*│ ╌─̇─̣⊰🎥 𝐕𝐈𝐃𝐄𝐎 𝐃𝐎𝐖𝐍load ⊱┈─̇─̣╌*
+*│ ╌─̇─̣⊰🎥 𝐕𝐈𝐃𝐄𝐎 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃 ⊱┈─̇─̣╌*
 *│─̇─̣┄┄┄┄┄┄┄┄┄┄┄┄┄─̇─̣*
 *│* 🎥 Title: ${videoTitle}
 *│* ⏱️ Duration: ${video.timestamp || "Unknown"}
 *│* 👥 Requested By: @${sender.split("@")[0]}
 *╰┄─̣┄─̇─̣┄─̇─̣┄─̇─̣┄─̇─̣─̇─̣─᛭*`;
 
-        /* 🖼️ 1. پہلے ویڈیو کی پکچر ڈیزائن اور مینشن کے ساتھ جائے گی */
+        /* 🖼️ 1. Image + Caption Send */
         const sentInfo = await conn.sendMessage(from, {
-            image: { url: video.thumbnail },
+            image: { url: video.thumbnail || res.data.thumbnail },
             caption: videoCaption,
             mentions: [sender]
         }, { quoted: fakevCard });
 
-        /* 🎥 2. اس کے فوراً بعد رئیل ویڈیو فارمیٹ میں ویڈیو جائے گی */
+        /* 🎥 2. MP4 Video Send */
         await conn.sendMessage(from, {
             video: { url: downloadUrl }, 
             mimetype: "video/mp4",
-            caption: `*🎬 ${videoTitle}*`, // ویڈیو کے نیچے ہلکا سا کیپشن
+            caption: `*🎬 ${videoTitle}*`,
             upload: conn.waUploadToServer
         }, { quoted: sentInfo }); 
 
