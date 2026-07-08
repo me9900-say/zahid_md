@@ -52,37 +52,21 @@ cmd({
       return reply('❌ No downloadable media URL found.');
     }
 
-    // Custom exclusive caption layout requested by you
+    // Custom caption footer
     let caption = `📌 *Title:* ${title}\n\n`;
     caption += `1𝐷𝜣𝜨𝐿𝜣𝜟𝐷 𝐵𝜳 𝛧𝜜𝛪𝐷𝛪 𝛭𝐷📂`;
 
     if (isVideo) {
-      // Download video content safely as arraybuffer
-      const videoResponse = await axios.get(mediaUrl, {
-        responseType: 'arraybuffer',
-        timeout: 120000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'video/mp4,video/*;q=0.9,*/*;q=0.8'
-        }
-      });
-
-      const videoBuffer = Buffer.from(videoResponse.data);
-
-      // Check if buffer is valid and not empty to prevent corruption error
-      if (!videoBuffer || videoBuffer.length < 1000) {
-        return reply('❌ File download corrupted or incomplete. Please try again.');
-      }
-
-      // STRICTLY DEFINING MIMETYPE FOR WHATSAPP PLAYBACK FIX
+      // Direct URL Method with strict WhatsApp configuration to avoid playback errors
       await client.sendMessage(from, {
-        video: videoBuffer,
+        video: { url: mediaUrl },
         mimetype: 'video/mp4',
-        caption: caption
+        caption: caption,
+        gifPlayback: false
       }, { quoted: mek });
 
     } else {
-      // Send image via direct URL object structure
+      // Send image via direct URL
       await client.sendMessage(from, {
         image: { url: mediaUrl },
         caption: caption
@@ -91,7 +75,7 @@ cmd({
 
   } catch (error) {
     console.error('Pinterest Downloader Error:', error.message);
-    reply(`❌ Failed to fetch content: ${error.message}`);
+    reply(`❌ Failed to fetch or send content: ${error.message}`);
   }
 });
-                   
+        
