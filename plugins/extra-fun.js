@@ -1,6 +1,6 @@
 const { cmd } = require("../zaidi");
 
-// Helper Functions (Inko file ke aakhir mein ya alag se rakhna)
+// Helper Functions
 function getMatchMessage(score) {
   if (score > 800) return "Rab Ne Bana Di Jodi! ✨ Perfect Match.";
   if (score > 500) return "Bohat achi dosti aur acha bond hai! 👍";
@@ -43,13 +43,17 @@ cmd({
   try {
     let user1, user2;
     
-    if (mek.quoted && mek.quoted.sender) {
+    // Exact Mentions and Quoted Check
+    let mentions = m.mentionedJid || mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    let quotedSender = m.quoted?.sender || mek.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (quotedSender) {
       user1 = mek.sender;
-      user2 = mek.quoted.sender;
+      user2 = quotedSender;
     } 
-    else if (m.mentionedJid && m.mentionedJid.length >= 2) {
-      user1 = m.mentionedJid[0];
-      user2 = m.mentionedJid[1];
+    else if (mentions.length >= 2) {
+      user1 = mentions[0];
+      user2 = mentions[1];
     } 
     else {
       return reply(`⚠️ *Kindly do users ko tag karein ya kisi ke message par reply karein!*\n\n📌 *Tareeqa:*\n\`.compatibility @user1 @user2\`\nya\n\`kisi ke message par reply karke .compatibility likhein\``);
@@ -87,14 +91,17 @@ cmd({
   try {
     let user;
     
-    if (mek.quoted && mek.quoted.sender) {
-      user = mek.quoted.sender;
+    let mentions = m.mentionedJid || mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    let quotedSender = m.quoted?.sender || mek.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (quotedSender) {
+      user = quotedSender;
     } 
-    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
-      user = m.mentionedJid[0];
+    else if (mentions.length >= 1) {
+      user = mentions[0];
     } 
     else {
-      user = mek.sender; // Agar koi tag na ho to khud ka check kare
+      user = mek.sender; // Agar kuch na ho to khud ka check karega
     }
 
     let auraScore = Math.floor(Math.random() * 1000) + 1;
@@ -129,11 +136,14 @@ cmd({
   try {
     let targetUser;
     
-    if (mek.quoted && mek.quoted.sender) {
-      targetUser = mek.quoted.sender;
+    let mentions = m.mentionedJid || mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    let quotedSender = m.quoted?.sender || mek.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (quotedSender) {
+      targetUser = quotedSender;
     } 
-    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
-      targetUser = m.mentionedJid[0];
+    else if (mentions.length >= 1) {
+      targetUser = mentions[0];
     } 
     else {
       return reply(`⚠️ *Kindly kisi ko tag karein ya uske message par reply karein!*`);
@@ -238,11 +248,14 @@ cmd({
   try {
     let targetUser = null;
     
-    if (mek.quoted && mek.quoted.sender) {
-      targetUser = mek.quoted.sender;
+    let mentions = m.mentionedJid || mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    let quotedSender = m.quoted?.sender || mek.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (quotedSender) {
+      targetUser = quotedSender;
     } 
-    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
-      targetUser = m.mentionedJid[0];
+    else if (mentions.length >= 1) {
+      targetUser = mentions[0];
     }
 
     const compliments = [
@@ -292,13 +305,16 @@ cmd({
   try {
     let user1, user2;
     
-    if (mek.quoted && mek.quoted.sender) {
+    let mentions = m.mentionedJid || mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    let quotedSender = m.quoted?.sender || mek.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (quotedSender) {
       user1 = mek.sender;
-      user2 = mek.quoted.sender;
+      user2 = quotedSender;
     } 
-    else if (m.mentionedJid && m.mentionedJid.length >= 2) {
-      user1 = m.mentionedJid[0];
-      user2 = m.mentionedJid[1];
+    else if (mentions.length >= 2) {
+      user1 = mentions[0];
+      user2 = mentions[1];
     } 
     else {
       return reply(`⚠️ *Kindly do users ko tag karein ya kisi ke message par reply karein!*\n\n📌 *Tareeqa:*\n\`.lovetest @user1 @user2\``);
@@ -429,7 +445,7 @@ cmd({
 });
 
 // ============================================
-// 📌 RATE COMMAND (Fully Fixed & Completed)
+// 📌 RATE COMMAND
 // ============================================
 cmd({
   pattern: "rate",
@@ -443,14 +459,17 @@ cmd({
   try {
     let targetUser;
     
-    if (mek.quoted && mek.quoted.sender) {
-      targetUser = mek.quoted.sender;
+    let mentions = m.mentionedJid || mek.message?.extendedTextMessage?.contextInfo?.mentionedJid || [];
+    let quotedSender = m.quoted?.sender || mek.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (quotedSender) {
+      targetUser = quotedSender;
     } 
-    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
-      targetUser = m.mentionedJid[0];
+    else if (mentions.length >= 1) {
+      targetUser = mentions[0];
     } 
     else {
-      targetUser = mek.sender; // Agar koi tag na ho to khud ko rate kare
+      targetUser = mek.sender;
     }
 
     let rateScore = Math.floor(Math.random() * 100) + 1;
