@@ -2,19 +2,19 @@ const { cmd } = require("../zaidi");
 const axios = require('axios');
 
 cmd({
-  pattern: "pinvideolink",
-  alias: ["pinlink", "pinvdl", "pinterestvlink"],
+  pattern: "pinlink",
+  alias: ["pin", "pindl", "pinterest", "pinterestdl"],
   react: "📥",
-  desc: "Download images or videos from Pinterest",
+  desc: "Download images or videos from Pinterest via link",
   category: "media",
   filename: __filename
 }, async (client, mek, m, { from, reply, body, prefix }) => {
 
-  // Extract URL from input text
-  const text = body.replace(new RegExp(`^${prefix}(pinterest|pin|pindl|pinterestdl)\\s*`, 'i'), '').trim();
+  // Extract URL from input text using the new pattern name
+  const text = body.replace(new RegExp(`^${prefix}(pinlink|pin|pindl|pinterest|pinterestdl)\\s*`, 'i'), '').trim();
   
   if (!text) {
-    return reply(`📌 *Pinterest Downloader*\n\nUsage: ${prefix}pinterest <Pinterest URL>\nExample: ${prefix}pinterest https://pin.it/727sKM3cf`);
+    return reply(`📌 *Pinterest Downloader*\n\nUsage: ${prefix}pinlink <Pinterest URL>\nExample: ${prefix}pinlink https://pin.it/727sKM3cf`);
   }
 
   // Regex match Pinterest pin URLs
@@ -57,16 +57,33 @@ cmd({
     caption += `1𝐷𝜣𝜨𝐿𝜣𝜟𝐷 𝐵𝜳 𝛧𝜜𝛪𝐷𝛪 𝛭𝐷📂`;
 
     if (isVideo) {
-      // Direct URL Method with strict WhatsApp configuration to avoid playback errors
+      // Fetching the video manually with strict headers
+      const videoResponse = await axios.get(mediaUrl, {
+        responseType: 'arraybuffer',
+        timeout: 120000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'video/mp4,video/*;q=0.9',
+          'Referer': 'https://www.pinterest.com/'
+        }
+      });
+
+      const videoBuffer = Buffer.from(videoResponse.data);
+
+      if (!videoBuffer || videoBuffer.length < 5000) {
+        return reply('❌ Video fetching failed or data is incomplete.');
+      }
+
+      // Sending buffer with filename to force WhatsApp engine parsing
       await client.sendMessage(from, {
-        video: { url: mediaUrl },
+        video: videoBuffer,
         mimetype: 'video/mp4',
-        caption: caption,
-        gifPlayback: false
+        fileName: 'video.mp4',
+        caption: caption
       }, { quoted: mek });
 
     } else {
-      // Send image via direct URL
+      // Send image via direct URL structure
       await client.sendMessage(from, {
         image: { url: mediaUrl },
         caption: caption
@@ -75,7 +92,6 @@ cmd({
 
   } catch (error) {
     console.error('Pinterest Downloader Error:', error.message);
-    reply(`❌ Failed to fetch or send content: ${error.message}`);
+    reply(`❌ Error processing request: ${error.message}`);
   }
 });
-        
