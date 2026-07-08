@@ -1,342 +1,607 @@
 const { cmd } = require("../zaidi");
-const config = require('../config');
 
+// ============================================
+// 📌 COMPATIBILITY COMMAND - مطابقت کی جانچ
+// ============================================
 cmd({
   pattern: "compatibility",
-  alias: ["friend", "fcheck"],
+  alias: ["friend", "fcheck", "match", "مطابقت"],
   desc: "Calculate the compatibility score between two users.",
   category: "fun",
   react: "💖",
   filename: __filename,
-  use: "@tag1 @tag2",
+  use: "@tag1 @tag2 or reply to message",
 }, async (conn, mek, m, { args, reply }) => {
   try {
-    if (args.length < 2) {
-      return reply("Please mention two users to calculate compatibility.\nUsage: `.compatibility @user1 @user2`");
+    let user1, user2;
+    
+    // Check if replying to a message
+    if (mek.quoted && mek.quoted.sender) {
+      user1 = mek.sender;
+      user2 = mek.quoted.sender;
+    } 
+    // Check if tagged users
+    else if (m.mentionedJid && m.mentionedJid.length >= 2) {
+      user1 = m.mentionedJid[0];
+      user2 = m.mentionedJid[1];
+    } 
+    else {
+      return reply(`⚠️ *براہ کرم دو صارفین کو ٹیگ کریں یا کسی کے میسج پر ریپلائی کریں!*\n\n📌 *طریقہ استعمال:*\n\`\`\`.compatibility @user1 @user2\`\`\`\nیا\n\`\`\`کسی کے میسج پر ریپلائی کریں اور .compatibility ٹائپ کریں\`\`\``);
     }
 
-    let user1 = m.mentionedJid[0]; 
-    let user2 = m.mentionedJid[1]; 
-
-    const specialNumber = config.DEV ? `${config.DEV}@s.whatsapp.net` : null;
-
-    // Calculate a random compatibility score (between 1 to 1000)
     let compatibilityScore = Math.floor(Math.random() * 1000) + 1;
+    let matchMsg = getMatchMessage(compatibilityScore);
+    let emojiPair = getEmojiPair(compatibilityScore);
+    
+    let message = `━━━━━━━━━━━━━━━━━━━━\n💖 *مطابقت کا نتیجہ* 💖\n━━━━━━━━━━━━━━━━━━━━\n\n${emojiPair} *@${user1.split('@')[0]}* ❤️ *@${user2.split('@')[0]}*\n\n📊 *مطابقت کا تناسب:* \`${compatibilityScore}/1000\`\n\n🌟 *نتیجہ:* ${matchMsg}\n━━━━━━━━━━━━━━━━━━━━`;
 
-    // Check if one of the mentioned users is the special number
-    if (user1 === specialNumber || user2 === specialNumber) {
-      compatibilityScore = 1000; // Special case for DEV number
-      return reply(`💖 Compatibility between @${user1.split('@')[0]} and @${user2.split('@')[0]}: ${compatibilityScore}+/1000 💖`);
-    }
-
-    // Send the compatibility message
     await conn.sendMessage(mek.chat, {
-      text: `💖 Compatibility between @${user1.split('@')[0]} and @${user2.split('@')[0]}: ${compatibilityScore}/1000 💖`,
+      text: message,
       mentions: [user1, user2],
     }, { quoted: mek });
 
   } catch (error) {
     console.log(error);
-    reply(`❌ Error: ${error.message}`);
+    reply(`❌ *خرابی:* ${error.message}`);
   }
 });
 
-  cmd({
+// ============================================
+// 📌 AURA COMMAND - عارضہ کی جانچ
+// ============================================
+cmd({
   pattern: "aura",
+  alias: ["auracheck", "عارضہ"],
   desc: "Calculate aura score of a user.",
   category: "fun",
   react: "💀",
   filename: __filename,
-  use: "@tag",
+  use: "@tag or reply to message",
 }, async (conn, mek, m, { args, reply }) => {
   try {
-    if (args.length < 1) {
-      return reply("Please mention a user to calculate their aura.\nUsage: `.aura @user`");
+    let user;
+    
+    // Check if replying to a message
+    if (mek.quoted && mek.quoted.sender) {
+      user = mek.quoted.sender;
+    } 
+    // Check if tagged user
+    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
+      user = m.mentionedJid[0];
+    } 
+    else {
+      return reply(`⚠️ *براہ کرم کسی صارف کو ٹیگ کریں یا کسی کے میسج پر ریپلائی کریں!*\n\n📌 *طریقہ استعمال:*\n\`\`\`.aura @user\`\`\`\nیا\n\`\`\`کسی کے میسج پر ریپلائی کریں اور .aura ٹائپ کریں\`\`\``);
     }
 
-    let user = m.mentionedJid[0]; 
-    const specialNumber = config.DEV ? `${config.DEV}@s.whatsapp.net` : null;
-
-    // Calculate a random aura score (between 1 to 1000)
     let auraScore = Math.floor(Math.random() * 1000) + 1;
+    let auraMsg = getAuraMessage(auraScore);
+    let auraEmoji = getAuraEmoji(auraScore);
+    
+    let message = `━━━━━━━━━━━━━━━━━━━━\n💀 *عارضہ کی جانچ* 💀\n━━━━━━━━━━━━━━━━━━━━\n\n${auraEmoji} *@${user.split('@')[0]}*\n\n⚡ *عارضہ سکور:* \`${auraScore}/1000\` 🗿\n\n🌟 *درجہ:* ${auraMsg}\n━━━━━━━━━━━━━━━━━━━━`;
 
-    // Check if the mentioned user is the special number
-    if (user === specialNumber) {
-      auraScore = 999999; // Special case for DEV number
-      return reply(`💀 Aura of @${user.split('@')[0]}: ${auraScore}+ 🗿`);
-    }
-
-    // Send the aura message
     await conn.sendMessage(mek.chat, {
-      text: `💀 Aura of @${user.split('@')[0]}: ${auraScore}/1000 🗿`,
+      text: message,
       mentions: [user],
     }, { quoted: mek });
 
   } catch (error) {
     console.log(error);
-    reply(`❌ Error: ${error.message}`);
+    reply(`❌ *خرابی:* ${error.message}`);
   }
 });
 
+// ============================================
+// 📌 ROAST COMMAND - جلانا (Ultimate Edition)
+// ============================================
 cmd({
-    pattern: "roast",
-    desc: "Roast someone in Hindi",
-    category: "fun",
-    react: "🔥",
-    filename: __filename,
-    use: "@tag"
-}, async (conn, mek, m, { q, reply }) => {
-    let roasts = [
-        "Abe bhai, tera IQ wifi signal se bhi kam hai!",
-        "Bhai, teri soch WhatsApp status jaisi hai, 24 ghante baad gayab ho jaati hai!",
-        "Abe sochta kitna hai, tu kya NASA ka scientist hai?",
-        "Abe tu hai kaun? Google pe search karne se bhi tera naam nahi aata!",
-        "Tera dimaag 2G network pe chal raha hai kya?",
-        "Itna overthink mat kar bhai, teri battery jaldi down ho jayegi!",
-        "Teri soch cricket ke match jaisi hai, baarish aate hi band ho jati hai!",
-        "Tu VIP hai, 'Very Idiotic Person'!",
-    "Abe bhai, tera IQ wifi signal se bhi kam hai!",
-    "Bhai, teri soch WhatsApp status jaisi hai, 24 ghante baad gayab ho jaati hai!",
-    "Abe tu kis planet se aaya hai, yeh duniya tere jaise aliens ke liye nahi hai!",
-    "Tere dimag mein khojne ka itna kuch hai, lekin koi result nahi milta!",
-    "Teri zindagi WhatsApp status jaisi hai, kabhi bhi delete ho sakti hai!",
-    "Tera style bilkul WiFi password ki tarah hai, sabko pata nahi!",
-    "Abe tu toh wahi hai jo apni zindagi ka plot twist bhi Google karta hai!",
-    "Abe tu toh software update bhi nahi chalne wala, pura hang hai!",
-    "Tere sochne se zyada toh Google search karne mein time waste ho jaata hai!",
-    "Mere paas koi shabdon ki kami nahi hai, bas tujhe roast karne ka mood nahi tha!",
-    "Teri personality toh dead battery jaisi hai, recharge karne ka time aa gaya hai!",
-    "Bhai, teri soch ke liye ek dedicated server hona chahiye!",
-    "Abe tu kaunsa game khel raha hai, jisme har baar fail ho jaata hai?",
-    "Tere jokes bhi software update ki tarah hote hain, baar-baar lagte hain par kaam nahi karte!",
-    "Teri wajah se toh mere phone ka storage bhi full ho jaata hai!",
-    "Abe bhai, tu na ek walking meme ban gaya hai!",
-    "Abe apne aap ko bada smart samajhta hai, par teri brain cells toh overload mein hain!",
-    "Teri wajah se toh humari group chat ko mute karne ka sochna padta hai!",
-    "Abe tere jaise log hamesha apne aap ko hero samajhte hain, par actually toh tum villain ho!",
-    "Tere jaise logon ke liye zindagi mein rewind aur fast forward button hona chahiye!",
-    "Tere mooh se nikla har lafz ek naya bug hai!",
-    "Abe tu apni zindagi ke saath save nahi kar paaya, aur dusron ke liye advice de raha hai!",
-    "Tu apne life ka sabse bada virus hai!",
-    "Abe tu hain ya koi broken app?",
-    "Tere soch ke liye CPU ki zarurat hai, par lagta hai tera CPU khatam ho gaya!",
-    "Abe tu kya kar raha hai, ek walking error message ban gaya hai!",
-    "Teri taareef toh bas lagti hai, par teri asli aukaat toh sabko pata hai!",
-    "Tera brain toh ek broken link ki tarah hai, sab kuch dhundne ke bawajood kuch nahi milta!",
-    "Bhai, tujhe dekh ke toh lagta hai, Netflix bhi teri wajah se crash ho gaya!",
-    "Teri tasveer toh bas ek screenshot lagti hai, real life mein tu kuch bhi nahi!",
-    "Abe bhai, tu lagta hai toh I-phone ho, lekin andar kaafi purana android hai!",
-    "Abe, tere jaisi soch se toh Google bhi nafrat karta hoga!",
-    "Bhai tu apne chehre se ghazab ka mood bana le, shayad koi notice kar le!",
-    "Tere kaam bhi uss app ki tarah hote hain jo crash ho jata hai jab sabko zarurat ho!",
-    "Teri zindagi ke sabse bada hack toh hai - 'Log mujhse kuch bhi expect mat karo'!",
-    "Abe tu apne aap ko hi mirror mein dekh ke samajhta hai ki sab kuch sahi hai!",
-    "Abe tu apne dimaag ko low power mode mein daalke chalta hai!",
-    "Tere paas ideas hain, par sab outdated hain jaise Windows XP!",
-    "Teri soch toh ek system error ki tarah hai, restart karna padega!",
-    "Teri personality toh ek empty hard drive jaise hai, kuch bhi valuable nahi!", 
-    "Abe tu kis planet se aaya hai, yeh duniya tere jaise logon ke liye nahi hai!",
-    "Tere chehre pe kisi ne 'loading' likh diya hai, par kabhi bhi complete nahi hota!",
-    "Tera dimaag toh ek broken link ki tarah hai, kabhi bhi connect nahi hota!",
-    "Abe, teri soch se toh Google ka algorithm bhi confused ho jata hai!",
-    "Tere jaisa banda, aur aise ideas? Yeh toh humne science fiction mein dekha tha!",
-    "Abe tu apne chehre pe 'not found' likhwa le, kyunki sabko kuch milta nahi!",
-    "Teri soch itni slow hai, Google bhi teri madad nahi kar paata!",
-    "Abe tu toh '404 not found' ka living example hai!",
-    "Tera dimaag bhi phone ki battery jaise hai, kabhi bhi drain ho jaata hai!",
-    "Abe tu toh wahi hai, jo apni zindagi ka password bhool jaata hai!",
-    "Abe tu jise apni soch samajhta hai, wo ek 'buffering' hai!",
-    "Teri life ke decisions itne confusing hain, ki KBC ke host bhi haraan ho jaaye!",
-    "Bhai, tere jaise logo ke liye ek dedicated 'error' page hona chahiye!",
-    "Teri zindagi ko 'user not found' ka message mil gaya hai!",
-    "Teri baatein utni hi value rakhti hain, jitni 90s ke mobile phones mein camera quality thi!",
-    "Abe bhai, tu toh har waqt 'under construction' rehta hai!",
-    "Tere saath toh life ka 'unknown error' hota hai, koi solution nahi milta!",
-    "Bhai, tere chehre pe ek warning sign hona chahiye - 'Caution: Too much stupidity ahead'!",
-    "Teri har baat pe lagta hai, system crash hone waala hai!",
-    "Tere paas idea hai, par wo abhi bhi 'under review' hai!"
-];               
-        
-    let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
-    let sender = `@${mek.sender.split("@")[0]}`;
-    let mentionedUser = m.mentionedJid[0] || (mek.quoted && mek.quoted.sender);
-
-    if (!mentionedUser) {
-        return reply("Usage: .roast @user (Tag someone to roast them!)");
+  pattern: "roast",
+  alias: ["jalao", "جلاؤ", "burn", "roastme"],
+  desc: "Roast someone in style with epic roasts",
+  category: "fun",
+  react: "🔥",
+  filename: __filename,
+  use: "@tag or reply to message"
+}, async (conn, mek, m, { reply }) => {
+  try {
+    let targetUser;
+    
+    // Check if replying to a message
+    if (mek.quoted && mek.quoted.sender) {
+      targetUser = mek.quoted.sender;
+    } 
+    // Check if tagged user
+    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
+      targetUser = m.mentionedJid[0];
+    } 
+    else {
+      return reply(`⚠️ *براہ کرم کسی کو ٹیگ کریں یا کسی کے میسج پر ریپلائی کریں!*\n\n📌 *طریقہ استعمال:*\n\`\`\`.roast @user\`\`\`\nیا\n\`\`\`کسی کے میسج پر ریپلائی کریں اور .roast ٹائپ کریں\`\`\``);
     }
 
-    let target = `@${mentionedUser.split("@")[0]}`;
+    let target = `@${targetUser.split("@")[0]}`;
     
-    // Sending the roast message with the mentioned user
-    let message = `${target} :\n *${randomRoast}*\n> This is all for fun, don't take it seriously!`;
-    await conn.sendMessage(mek.chat, { text: message, mentions: [mek.sender, mentionedUser] }, { quoted: mek });
-});
-
-cmd({
-    pattern: "8ball",
-    desc: "Magic 8-Ball gives answers",
-    category: "fun",
-    react: "🎱",
-    filename: __filename
-}, 
-async (conn, mek, m, { from, q, reply }) => {
-    if (!q) return reply("Ask a yes/no question! Example: .8ball Will I be rich?");
-    
-    let responses = [
-        "Yes!", "No.", "Maybe...", "Definitely!", "Not sure.", 
-        "Ask again later.", "I don't think so.", "Absolutely!", 
-        "No way!", "Looks promising!"
+    const roasts = [
+      // 🔥 CLASSIC ROASTS
+      "تیری عقل وائی فائی سگنل سے بھی کم ہے! 📶",
+      "تیری سوچ واٹس ایپ سٹیٹس جیسی ہے، 24 گھنٹے بعد غائب ہو جاتی ہے! 📱",
+      "گوگل پر سرچ کرنے سے بھی تیرا نام نہیں آتا! 🔍",
+      "تیرا دماغ 2G نیٹ ورک پر چل رہا ہے! 📡",
+      "اتنا اوور تھنک مت کر، تیری بیٹری جلدی ڈاؤن ہو جائے گی! 🔋",
+      "تو VIP ہے - 'Very Idiotic Person'! 👑",
+      "تیرا سٹائل وائی فائی پاسورڈ جیسا ہے، سب کو پتہ نہیں! 🔐",
+      "تو سافٹ ویئر اپ ڈیٹ بھی نہیں چلنے والا، پورا ہینگ ہے! 💻",
+      "تیری پرسنالٹی ڈیڈ بیٹری جیسی ہے! 🔌",
+      "تو اپنی زندگی کا سب سے بڑا وائرس ہے! 🦠",
+      "تیرا برین بروکن لنک جیسا ہے، کچھ نہیں ملتا! 🔗",
+      "تیری تصویر سکرین شاٹ لگتی ہے، اصلی میں تو کچھ بھی نہیں! 📸",
+      "تو لگتا تو آئی فون ہے، لیکن اندر پرانا اینڈرائیڈ ہے! 📱",
+      "تیرے چہرے پے 'لوڈنگ' لکھا ہے، پر کبھی کمپلیٹ نہیں ہوتا! ⏳",
+      "تو '404 Not Found' کی زندہ مثال ہے! ❌",
+      
+      // 🔥 EPIC ROASTS
+      "🔥 تمہاری Personality WiFi Signal جیسی ہے... قریب آؤ تو بھی Connect نہیں ہوتی! 🤡",
+      "🔥 تم اتنے Unique ہو کہ Error بھی تمہیں Ignore کر دیتا ہے! 💀",
+      "🔥 Mirror بھی تمہیں دیکھ کر سوچتا ہوگا... 'System Failure!' 😂",
+      "🔥 تمہاری Logic Windows XP سے بھی پرانی لگتی ہے! 🪦",
+      "🔥 Google بھی تمہیں Search کر کے بولے: 'No Results Found!' 😭",
+      "🔥 تمہاری Speed دیکھ کر Turtle نے بھی Overtake کر لیا! 🐢",
+      "🔥 تمہارا Confidence دیکھ کر Failure بھی شرما جائے! 🤣",
+      "🔥 تمہارا IQ Calculator میں Negative آتا ہے! 💀",
+      "🔥 تمہاری باتیں سن کر Headphones بھی Disconnect ہو جائیں! 🎧",
+      "🔥 تمہارا Face دیکھ کر Camera بھی Blur Mode On کر دیتا ہے! 📸",
+      "🔥 تم اتنے Lucky ہو کہ Misfortune بھی تمہیں Avoid کرتی ہے! 😂",
+      "🔥 تمہاری Planning ہمیشہ 'Coming Soon' پر ہی رہتی ہے! 🚧",
+      "🔥 تمہارا Attitude Free Trial جیسا ہے... زیادہ دیر نہیں چلتا! 😭",
+      "🔥 تمہاری Smile دیکھ کر Dentist بھی Resign کر دے! 🦷",
+      "🔥 تمہارا Brain Loading... 1% Since Birth! 🧠",
+      "🔥 تمہاری Story دیکھ کر Boredom بھی Skip کر دے! 😴",
+      "🔥 تمہارا Fashion Sense Offline رہتا ہے! 👕",
+      "🔥 تمہارا Reply Internet Explorer سے بھی Late آتا ہے! 🌐",
+      "🔥 تمہارا Talent Hidden نہیں... Missing ہے! 💀",
+      "🔥 تمہاری Destiny بھی بولتی ہوگی: 'I'm Done!' 🤡",
+      "🔥 تمہارے Excuses Netflix Series سے بھی لمبے ہوتے ہیں! 📺",
+      "🔥 تمہارا Mood Weather Forecast سے بھی زیادہ Confusing ہے! 🌦️",
+      "🔥 تمہارا Face Unlock بھی تمہیں Reject کر دیتا ہے! 📱",
+      "🔥 تمہاری Memory RAM نہیں... Calculator History جتنی ہے! 🧮",
+      "🔥 تمہارا Style Copy ہے... Original صرف Problem ہے! 😭",
+      "🔥 تمہارا Luck Airplane Mode میں چل رہا ہے! ✈️",
+      "🔥 تمہاری سوچ Buffering میں ہی زندگی گزار دیتی ہے! ⏳",
+      "🔥 تمہارا Future دیکھ کر Horoscope بھی Logout ہو جائے! 🌙",
+      "🔥 تم اتنے بے مثال ہو کہ Example بھی نہیں بنتے! 🤣",
+      
+      // 🔥 ULTIMATE ROASTS
+      "🔥 تمہارا Presence دیکھ کر Ghost بھی ڈر جائے! 👻",
+      "🔥 تمہاری Voice سن کر Siri بھی غلط جواب دے! 🗣️",
+      "🔥 تمہارے Jokes سن کر Stand-up Comedian بھی Retire ہو جائے! 🎤",
+      "🔥 تمہارا Cooking دیکھ کر Chef بھی Fridge بند کر دے! 🍳",
+      "🔥 تمہاری Dancing دیکھ کر Michael Jackson بھی Bed pe ja jaye! 💃",
+      "🔥 تمہارا Singing سن کر Nightingale بھی Quit کر دے! 🎵",
+      "🔥 تمہاری Painting دیکھ کر Picasso بھی Ro پڑے! 🎨",
+      "🔥 تمہارا Driving دیکھ کر GPS بھی Confused ہو جائے! 🚗",
+      "🔥 تمہاری Photography دیکھ کر Camera بھی Shutter بند کر دے! 📷",
+      "🔥 تمہارا Handwriting دیکھ کر Doctor بھی Prescription نہ سمجھ پائے! ✍️",
+      "🔥 تمہاری Fashion دیکھ کر Mannequin بھی گھبرا جائے! 👗",
+      "🔥 تمہارا Makeup دیکھ کر Mirror بھی Crack ہو جائے! 💄",
+      "🔥 تمہاری Beard دیکھ کر Barber بھی Razor پھینک دے! 🪒",
+      "🔥 تمہارا Haircut دیکھ کر Stylist بھی Hair Color بھول جائے! 💇",
+      "🔥 تمہارا Walk دیکھ کر Model بھی Runway چھوڑ دے! 🚶",
+      "🔥 تمہاری Attitude دیکھ کر Attitude بھی Attitude Change کر لے! 😎",
+      "🔥 تمہارا Swag دیکھ کر Swag بھی بھاگ جائے! 🏃",
+      "🔥 تمہارا Game دیکھ کر Gamer بھی Uninstall کر دے! 🎮",
+      "🔥 تمہارا Code دیکھ کر Debugger بھی ہار مان جائے! 💻",
+      "🔥 تمہارا Password دیکھ کر Hacker بھی Leave کر دے! 🔓",
+      "🔥 تمہاری Life دیکھ کر Hollywood بھی Script Change کر دے! 🎬",
+      "🔥 تمہاری Story دیکھ کر Novelist بھی Book بند کر دے! 📖",
+      "🔥 تمہاری Poetry سن کر Shakespeare بھی Blank Verse بھول جائے! 📝",
+      "🔥 تمہارا Philosophy سن کر Socrates بھی Poison پی لے! 🧠",
+      "🔥 تمہارا Logic دیکھ کر Einstein بھی Theory بدل دے! 🔬",
+      "🔥 تمہارا Math دیکھ کر Calculator بھی Error دے! 🧮",
+      "🔥 تمہاری Biology دیکھ کر Darwin بھی Evolution بھول جائے! 🧬",
+      "🔥 تمہاری Chemistry دیکھ کر Periodic Table بھی P-Table بن جائے! ⚗️",
+      "🔥 تمہاری Physics دیکھ کر Newton بھی Apple گرائے! 🍎",
+      "🔥 تمہاری History دیکھ کر Historian بھی Future میں چلا جائے! 📜"
     ];
-    
-    let answer = responses[Math.floor(Math.random() * responses.length)];
-    
-    reply(`🎱 *Magic 8-Ball says:* ${answer}`);
+
+    let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
+    let sender = `@${mek.sender.split("@")[0]}`;
+
+    let header = `~꙳⎯꯭ͯ☆👀🍒🕊️.⃟‌ٖٖٖٖٖٖ♥️~\n🌸🌎🎋✿･✧\n💀 *ROAST MODE ACTIVATED...* 💀\n━━━━━━━━━━━━━━━━━━━━\n`;
+    let footer = `\n━━━━━━━━━━━━━━━━━━━━\n🔥 Roast ختم... مگر تمہاری بے عزتی ابھی بھی Running ہے... ☠️\n\n𝆺𝅥𝐙ɑ͢ı֟፝𝛛֟ı֟፝𝆭⏤꯭٭»ً𐙚 🌚🔥`;
+
+    let message = `${header}\n${sender} نے ${target} کو جلایا:\n\n💀 *${randomRoast}*\n${footer}`;
+
+    await conn.sendMessage(mek.chat, {
+      text: message,
+      mentions: [mek.sender, targetUser]
+    }, { quoted: mek });
+
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
 });
 
+// ============================================
+// 📌 8BALL COMMAND - جادوئی گیند
+// ============================================
 cmd({
-    pattern: "compliment",
-    desc: "Give a nice compliment",
-    category: "fun",
-    react: "😊",
-    filename: __filename,
-    use: "@tag (optional)"
+  pattern: "8ball",
+  alias: ["magicball", "ball", "گیند"],
+  desc: "Magic 8-Ball gives answers",
+  category: "fun",
+  react: "🎱",
+  filename: __filename
+}, async (conn, mek, m, { q, reply }) => {
+  try {
+    if (!q) {
+      return reply(`🎱 *جادوئی گیند سے پوچھیں!*\n\n📌 *طریقہ استعمال:*\n\`\`\`.8ball کیا میں آج امیر ہوں گا؟\`\`\``);
+    }
+
+    const responses = [
+      "🎱 *جی ہاں!* بالکل! ✅",
+      "🎱 *نہیں.* ایسا نہیں ہوگا! ❌",
+      "🎱 *شاید...* وقت بتائے گا! ⏳",
+      "🎱 *یقیناً!* 💯",
+      "🎱 *اس پے مت گنو!* 😅",
+      "🎱 *دوبارہ پوچھیں!* 🔮",
+      "🎱 *میرے خیال میں نہیں.* 🙅",
+      "🎱 *بلا شک و شبہ!* 🎯",
+      "🎱 *یقینی ہے!* 💫",
+      "🎱 *امکانات کم ہیں.* 🌧️",
+      "🎱 *بہت ممکن ہے!* 🌟",
+      "🎱 *ابھی نہیں، بعد میں!* ⏰"
+    ];
+
+    let answer = responses[Math.floor(Math.random() * responses.length)];
+    let question = q.trim();
+
+    let message = `━━━━━━━━━━━━━━━━━━━━\n🎱 *جادوئی گیند* 🎱\n━━━━━━━━━━━━━━━━━━━━\n\n❓ *سوال:* ${question}\n\n${answer}\n━━━━━━━━━━━━━━━━━━━━`;
+
+    reply(message);
+
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
+});
+
+// ============================================
+// 📌 COMPLIMENT COMMAND - تعریف
+// ============================================
+cmd({
+  pattern: "compliment",
+  alias: ["tareef", "تعریف", "nice"],
+  desc: "Give a nice compliment",
+  category: "fun",
+  react: "😊",
+  filename: __filename,
+  use: "@tag or reply to message"
 }, async (conn, mek, m, { reply }) => {
-    let compliments = [
-        "You're amazing just the way you are! 💖",
-        "You light up every room you walk into! 🌟",
-        "Your smile is contagious! 😊",
-        "You're a genius in your own way! 🧠",
-        "You bring happiness to everyone around you! 🥰",
-        "You're like a human sunshine! ☀️",
-        "Your kindness makes the world a better place! ❤️",
-        "You're unique and irreplaceable! ✨",
-        "You're a great listener and a wonderful friend! 🤗",
-        "Your positive vibes are truly inspiring! 💫",
-        "You're stronger than you think! 💪",
-        "Your creativity is beyond amazing! 🎨",
-        "You make life more fun and interesting! 🎉",
-        "Your energy is uplifting to everyone around you! 🔥",
-        "You're a true leader, even if you don’t realize it! 🏆",
-        "Your words have the power to make people smile! 😊",
-        "You're so talented, and the world needs your skills! 🎭",
-        "You're a walking masterpiece of awesomeness! 🎨",
-        "You're proof that kindness still exists in the world! 💕",
-        "You make even the hardest days feel a little brighter! ☀️"
+  try {
+    let targetUser = null;
+    
+    // Check if replying to a message
+    if (mek.quoted && mek.quoted.sender) {
+      targetUser = mek.quoted.sender;
+    } 
+    // Check if tagged user
+    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
+      targetUser = m.mentionedJid[0];
+    }
+
+    const compliments = [
+      "تم جس طرح ہو بالکل ویسے ہی بہترین ہو! 💖",
+      "تم ہر جگہ روشنی بکھیرتے ہو! 🌟",
+      "تمہاری مسکراہٹ متعدی ہے! 😊",
+      "تم اپنے انداز میں باصلاحیت ہو! 🧠",
+      "تم ہر ایک کو خوشی دیتے ہو! 🥰",
+      "تم انسانیت کی شکل ہو! ☀️",
+      "تمہاری مہربانی دنیا کو بہتر بناتی ہے! ❤️",
+      "تم ناقابلِ تقلید اور بے مثال ہو! ✨",
+      "تم بہترین سننے والے اور زبردست دوست ہو! 🤗",
+      "تمہارے مثبت خیالات واقعی متاثر کن ہیں! 💫",
+      "تم جتنے مضبوط ہو اس سے زیادہ نہیں! 💪",
+      "تمہاری تخلیقی صلاحیتیں حیرت انگیز ہیں! 🎨",
+      "تم زندگی کو مزیدار اور دلچسپ بناتے ہو! 🎉",
+      "تمہاری توانائی ہر ایک کو بلند کرتی ہے! 🔥",
+      "تم ایک حقیقی لیڈر ہو، چاہے تم جانتے ہو یا نہیں! 🏆",
+      "تم اتنی صلاحیت رکھتے ہو، دنیا کو تمہاری ضرورت ہے! 🎭",
+      "تم اس بات کا ثبوت ہو کہ مہربانی اب بھی موجود ہے! 💕",
+      "تم مشکل دنوں کو بھی روشن کر دیتے ہو! ☀️",
+      "تمہاری موجودگی سے ہر کوئی خوش ہوتا ہے! 🌈",
+      "تم ایک حقیقی ہیرو ہو، بغیر کیپ کے! 🦸"
     ];
 
     let randomCompliment = compliments[Math.floor(Math.random() * compliments.length)];
     let sender = `@${mek.sender.split("@")[0]}`;
-    let mentionedUser = m.mentionedJid[0] || (mek.quoted && mek.quoted.sender);
-    let target = mentionedUser ? `@${mentionedUser.split("@")[0]}` : "";
+    
+    let message;
+    if (targetUser) {
+      let target = `@${targetUser.split("@")[0]}`;
+      message = `━━━━━━━━━━━━━━━━━━━━\n😊 *تعریف کا لمحہ!* 😊\n━━━━━━━━━━━━━━━━━━━━\n\n${sender} نے ${target} کی تعریف کی:\n\n🌟 *${randomCompliment}*\n━━━━━━━━━━━━━━━━━━━━`;
+    } else {
+      message = `━━━━━━━━━━━━━━━━━━━━\n😊 *آپ کے لیے تعریف!* 😊\n━━━━━━━━━━━━━━━━━━━━\n\n${sender}, آپ نے کسی کو ٹیگ نہیں کیا! لیکن آپ کے لیے:\n\n🌟 *${randomCompliment}*\n━━━━━━━━━━━━━━━━━━━━`;
+    }
 
-    let message = mentionedUser 
-        ? `${sender} complimented ${target}:\n😊 *${randomCompliment}*`
-        : `${sender}, you forgot to tag someone! But hey, here's a compliment for you:\n😊 *${randomCompliment}*`;
+    await conn.sendMessage(mek.chat, {
+      text: message,
+      mentions: [mek.sender, targetUser].filter(Boolean)
+    }, { quoted: mek });
 
-    await conn.sendMessage(mek.chat, { text: message, mentions: [mek.sender, mentionedUser].filter(Boolean) }, { quoted: mek });
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
 });
 
+// ============================================
+// 📌 LOVE TEST COMMAND - محبت کا امتحان
+// ============================================
 cmd({
-    pattern: "lovetest",
-    desc: "Check love compatibility between two users",
-    category: "fun",
-    react: "❤️",
-    filename: __filename,
-    use: "@tag1 @tag2"
+  pattern: "lovetest",
+  alias: ["love", "محبت", "lt"],
+  desc: "Check love compatibility between two users",
+  category: "fun",
+  react: "❤️",
+  filename: __filename,
+  use: "@tag1 @tag2 or reply to message"
 }, async (conn, mek, m, { args, reply }) => {
-    if (args.length < 2) return reply("Tag two users! Example: .lovetest @user1 @user2");
+  try {
+    let user1, user2;
+    
+    // Check if replying to a message
+    if (mek.quoted && mek.quoted.sender) {
+      user1 = mek.sender;
+      user2 = mek.quoted.sender;
+    } 
+    // Check if tagged users
+    else if (m.mentionedJid && m.mentionedJid.length >= 2) {
+      user1 = m.mentionedJid[0];
+      user2 = m.mentionedJid[1];
+    } 
+    else {
+      return reply(`⚠️ *براہ کرم دو صارفین کو ٹیگ کریں یا کسی کے میسج پر ریپلائی کریں!*\n\n📌 *طریقہ استعمال:*\n\`\`\`.lovetest @user1 @user2\`\`\`\nیا\n\`\`\`کسی کے میسج پر ریپلائی کریں اور .lovetest ٹائپ کریں\`\`\``);
+    }
 
-    let user1 = args[0].replace("@", "") + "@s.whatsapp.net";
-    let user2 = args[1].replace("@", "") + "@s.whatsapp.net";
+    let lovePercent = Math.floor(Math.random() * 100) + 1;
+    let loveEmoji = getLoveEmoji(lovePercent);
+    let loveMsg = getLoveMessage(lovePercent);
 
-    let lovePercent = Math.floor(Math.random() * 100) + 1; // Generates a number between 1-100
+    let result = `━━━━━━━━━━━━━━━━━━━━\n💘 *محبت کا امتحان* 💘\n━━━━━━━━━━━━━━━━━━━━\n\n${loveEmoji} *@${user1.split('@')[0]}* 💙 *@${user2.split('@')[0]}*\n\n💕 *محبت کا تناسب:* \`${lovePercent}%\`\n\n📝 *نتیجہ:* ${loveMsg}\n━━━━━━━━━━━━━━━━━━━━`;
 
-    let messages = [
-        { range: [90, 100], text: "💖 *A match made in heaven!* True love exists!" },
-        { range: [75, 89], text: "😍 *Strong connection!* This love is deep and meaningful." },
-        { range: [50, 74], text: "😊 *Good compatibility!* You both can make it work." },
-        { range: [30, 49], text: "🤔 *It’s complicated!* Needs effort, but possible!" },
-        { range: [10, 29], text: "😅 *Not the best match!* Maybe try being just friends?" },
-        { range: [1, 9], text: "💔 *Uh-oh!* This love is as real as a Bollywood breakup!" }
+    await conn.sendMessage(mek.chat, {
+      text: result,
+      mentions: [user1, user2]
+    }, { quoted: mek });
+
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
+});
+
+// ============================================
+// 📌 EMOJI COMMAND - ایموجی کنورٹر
+// ============================================
+cmd({
+  pattern: "emoji",
+  alias: ["emojify", "ایموجی"],
+  desc: "Convert text into emoji form.",
+  category: "fun",
+  react: "🙂",
+  filename: __filename,
+  use: "<text>"
+}, async (conn, mek, m, { q, reply }) => {
+  try {
+    if (!q) {
+      return reply(`⚠️ *براہ کرم متن فراہم کریں!*\n\n📌 *طریقہ استعمال:*\n\`\`\`.emoji Hello World\`\`\``);
+    }
+
+    let text = q.trim();
+    let emojiText = text.split('').map(char => {
+      let lower = char.toLowerCase();
+      const emojiMap = {
+        'a': '🅰️', 'b': '🅱️', 'c': '🇨', 'd': '🇩', 'e': '🇪',
+        'f': '🇫', 'g': '🇬', 'h': '🇭', 'i': '🇮', 'j': '🇯',
+        'k': '🇰', 'l': '🇱', 'm': '🇲', 'n': '🇳', 'o': '🅾️',
+        'p': '🇵', 'q': '🇶', 'r': '🇷', 's': '🇸', 't': '🇹',
+        'u': '🇺', 'v': '🇻', 'w': '🇼', 'x': '🇽', 'y': '🇾',
+        'z': '🇿', '0': '0️⃣', '1': '1️⃣', '2': '2️⃣', '3': '3️⃣',
+        '4': '4️⃣', '5': '5️⃣', '6': '6️⃣', '7': '7️⃣', '8': '8️⃣',
+        '9': '9️⃣', ' ': '  ', '!': '❗', '?': '❓', '.': '▪️',
+        ',': '🔹', '-': '➖', '_': '🔲', '@': '🅰️', '#': '#️⃣'
+      };
+      return emojiMap[lower] || char;
+    }).join('');
+
+    if (!emojiText.trim()) {
+      return reply("⚠️ *کوئی درست حرف نہیں ملا!*");
+    }
+
+    let message = `━━━━━━━━━━━━━━━━━━━━\n🔄 *متن سے ایموجی* 🔄\n━━━━━━━━━━━━━━━━━━━━\n\n📝 *اصل متن:*\n${text}\n\n🎨 *ایموجی ورژن:*\n${emojiText}\n━━━━━━━━━━━━━━━━━━━━`;
+
+    await conn.sendMessage(mek.chat, { text: message }, { quoted: mek });
+
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
+});
+
+// ============================================
+// 📌 FORTUNE COMMAND - قسمت بتاؤ
+// ============================================
+cmd({
+  pattern: "fortune",
+  alias: ["qismat", "قسمت", "luck"],
+  desc: "Tell your fortune",
+  category: "fun",
+  react: "🔮",
+  filename: __filename
+}, async (conn, mek, m, { q, reply }) => {
+  try {
+    const fortunes = [
+      "🔮 *آج کا دن تمہارا ہے!* کامیابی تمہارے قدم چومے گی! 🌟",
+      "🔮 *مہربانی کرو،* کیونکہ یہ تمہارے پاس واپس آئے گی! 💫",
+      "🔮 *ایک نیا موقع* تمہارا انتظار کر رہا ہے! 🎯",
+      "🔮 *صبر کرو،* اچھے دن آنے والے ہیں! 🌈",
+      "🔮 *تم بہت مضبوط ہو،* جو چاہو حاصل کر سکتے ہو! 💪",
+      "🔮 *محبت تمہارے قریب ہے،* بس دیکھو! ❤️",
+      "🔮 *آج کچھ نیا سیکھو،* یہ تمہارے کام آئے گا! 📚",
+      "🔮 *جو تم چاہتے ہو وہی تمہیں ملے گا!* بس یقین رکھو! ✨",
+      "🔮 *ایک پرانا دوست* تم سے رابطہ کرے گا! 🤝",
+      "🔮 *تمہارا مستقبل روشن ہے،* بس آگے بڑھتے رہو! ☀️"
     ];
 
-    let loveMessage = messages.find(msg => lovePercent >= msg.range[0] && lovePercent <= msg.range[1]).text;
+    let fortune = fortunes[Math.floor(Math.random() * fortunes.length)];
+    let user = mek.sender ? `@${mek.sender.split("@")[0]}` : "دوست";
 
-    let message = `💘 *Love Compatibility Test* 💘\n\n❤️ *@${user1.split("@")[0]}* + *@${user2.split("@")[0]}* = *${lovePercent}%*\n${loveMessage}`;
+    let message = `━━━━━━━━━━━━━━━━━━━━\n🔮 *قسمت کی پیش گوئی* 🔮\n━━━━━━━━━━━━━━━━━━━━\n\n👤 *تمہارے لیے:* ${user}\n\n${fortune}\n━━━━━━━━━━━━━━━━━━━━`;
 
-    await conn.sendMessage(mek.chat, { text: message, mentions: [user1, user2] }, { quoted: mek });
-}); 
+    await conn.sendMessage(mek.chat, {
+      text: message,
+      mentions: [mek.sender]
+    }, { quoted: mek });
 
-cmd(
-    {
-        pattern: "emoji",
-        desc: "Convert text into emoji form.",
-        category: "fun",
-        react: "🙂",
-        filename: __filename,
-        use: "<text>"
-    },
-    async (conn, mek, m, { args, q, reply }) => {
-        try {
-            // Join the words together in case the user enters multiple words
-            let text = args.join(" ");
-            
-            // Map text to corresponding emoji characters
-            let emojiMapping = {
-                "a": "🅰️",
-                "b": "🅱️",
-                "c": "🇨️",
-                "d": "🇩️",
-                "e": "🇪️",
-                "f": "🇫️",
-                "g": "🇬️",
-                "h": "🇭️",
-                "i": "🇮️",
-                "j": "🇯️",
-                "k": "🇰️",
-                "l": "🇱️",
-                "m": "🇲️",
-                "n": "🇳️",
-                "o": "🅾️",
-                "p": "🇵️",
-                "q": "🇶️",
-                "r": "🇷️",
-                "s": "🇸️",
-                "t": "🇹️",
-                "u": "🇺️",
-                "v": "🇻️",
-                "w": "🇼️",
-                "x": "🇽️",
-                "y": "🇾️",
-                "z": "🇿️",
-                "0": "0️⃣",
-                "1": "1️⃣",
-                "2": "2️⃣",
-                "3": "3️⃣",
-                "4": "4️⃣",
-                "5": "5️⃣",
-                "6": "6️⃣",
-                "7": "7️⃣",
-                "8": "8️⃣",
-                "9": "9️⃣",
-                " ": "␣", // for space
-            };
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
+});
 
-            // Convert the input text into emoji form
-            let emojiText = text.toLowerCase().split("").map(char => emojiMapping[char] || char).join("");
+// ============================================
+// 📌 MEME COMMAND - میم جنریٹر
+// ============================================
+cmd({
+  pattern: "meme",
+  alias: ["میم"],
+  desc: "Generate random meme text",
+  category: "fun",
+  react: "😂",
+  filename: __filename
+}, async (conn, mek, m, { reply }) => {
+  try {
+    const memes = [
+      "😂 *جب کسی نے پیپر میں صرف اپنا نام لکھا اور پاس ہو گیا!* 📝",
+      "😅 *مجھے لگا تھا کہ کل کا دن مشکل ہوگا، پر آج اور بھی مشکل نکلا!* 🤦",
+      "🤣 *جب ماں نے پوچھا کہ کیا کھاؤ گے اور میں نے کہا 'جو بناؤ'* 🍽️",
+      "😭 *جب میں نے سوچا کہ اب زندگی سمجھ آ گئی، پھر حساب کا پیپر آیا!* 📐",
+      "😂 *میں: کل سے ڈائٹ شروع کروں گا*\nمیرا دماغ: چلو آج چکن کھا لیتے ہیں! 🍗",
+      "😅 *جب کسی نے پوچھا کہ تمہارا پسندیدہ کھانا کیا ہے؟*\nمیں: جو میرے سامنے ہو! 🍕",
+      "🤣 *سائنس: پانی ابلنے کا پوائنٹ 100°C ہے*\nپاکستانی ماں: بس ایک بار اور ابال لو! ☕",
+      "😂 *میں صبح اٹھا: آج بہت کام کروں گا*\nمیرا بستر: نہیں تم نہیں کرو گے! 🛏️",
+      "😭 *جب میں نے سوچا کہ وہ میری طرف دیکھ رہا ہے،*\nپتہ چلا وہ میرے پیچھے والے کو دیکھ رہا تھا! 👀"
+    ];
 
-            // If no valid text is provided
-            if (!text) {
-                return reply("Please provide some text to convert into emojis!");
-            }
+    let meme = memes[Math.floor(Math.random() * memes.length)];
+    
+    let message = `━━━━━━━━━━━━━━━━━━━━\n😂 *میم ٹائم!* 😂\n━━━━━━━━━━━━━━━━━━━━\n\n${meme}\n\n> 🎭 *ہنسو اور ہنسانا جاری رکھو!*\n━━━━━━━━━━━━━━━━━━━━`;
 
-            await conn.sendMessage(mek.chat, {
-                text: emojiText,
-            }, { quoted: mek });
+    reply(message);
 
-        } catch (error) {
-            console.log(error);
-            reply(`Error: ${error.message}`);
-        }
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
+});
+
+// ============================================
+// 📌 RATE COMMAND - ریٹنگ
+// ============================================
+cmd({
+  pattern: "rate",
+  alias: ["ریٹ", "rating"],
+  desc: "Rate someone or something",
+  category: "fun",
+  react: "⭐",
+  filename: __filename,
+  use: "@tag or reply to message"
+}, async (conn, mek, m, { q, reply }) => {
+  try {
+    let targetUser = null;
+    
+    // Check if replying to a message
+    if (mek.quoted && mek.quoted.sender) {
+      targetUser = mek.quoted.sender;
+    } 
+    // Check if tagged user
+    else if (m.mentionedJid && m.mentionedJid.length >= 1) {
+      targetUser = m.mentionedJid[0];
     }
-);
+
+    let rating = Math.floor(Math.random() * 10) + 1;
+    let stars = "⭐".repeat(rating) + "☆".repeat(10 - rating);
+    
+    let target = targetUser ? `@${targetUser.split("@")[0]}` : "آپ";
+
+    let message = `━━━━━━━━━━━━━━━━━━━━\n⭐ *ریٹنگ کا وقت!* ⭐\n━━━━━━━━━━━━━━━━━━━━\n\n👤 *نام:* ${target}\n\n📊 *ریٹنگ:* ${rating}/10\n\n${stars}\n\n> 💫 *یہ ریٹنگ مکمل طور پر بے ترتیب ہے!*\n━━━━━━━━━━━━━━━━━━━━`;
+
+    await conn.sendMessage(mek.chat, {
+      text: message,
+      mentions: targetUser ? [targetUser] : []
+    }, { quoted: mek });
+
+  } catch (error) {
+    console.log(error);
+    reply(`❌ *خرابی:* ${error.message}`);
+  }
+});
+
+// ============================================
+// 📌 HELPER FUNCTIONS
+// ============================================
+
+function getMatchMessage(score) {
+  if (score >= 950) return "💞 *آسمانی جوڑی!* کامل مطابقت! 🌟";
+  if (score >= 850) return "💕 *شاندار مطابقت!* بہترین جوڑی! ✨";
+  if (score >= 700) return "😊 *اچھی مطابقت!* ساتھ رہ سکتے ہو! 💑";
+  if (score >= 500) return "🤔 *کوشش کرو!* ممکن ہے بن جائے! 💭";
+  if (score >= 300) return "😅 *مشکل ہے!* پر محنت کرو! 💔";
+  return "💔 *بہت کم مطابقت!* دوست رہو بہتر ہے! 🤝";
+}
+
+function getEmojiPair(score) {
+  if (score >= 950) return "💞";
+  if (score >= 850) return "💕";
+  if (score >= 700) return "💗";
+  if (score >= 500) return "💓";
+  if (score >= 300) return "💔";
+  return "💢";
+}
+
+function getAuraMessage(score) {
+  if (score >= 950) return "👑 *لیجنڈری عارضہ!* ناقابلِ شکست! 🌟";
+  if (score >= 850) return "⚡ *طاقتور عارضہ!* بہت مضبوط! 💫";
+  if (score >= 700) return "💫 *اچھا عارضہ!* متاثر کن! ✨";
+  if (score >= 500) return "🌙 *عام عارضہ!* ٹھیک ہے! ⭐";
+  if (score >= 300) return "🌧️ *کمزور عارضہ!* بہتر کرو! 💪";
+  return "💀 *بہت کمزور!* ابھی بہت کچھ سیکھنا ہے! 📚";
+}
+
+function getAuraEmoji(score) {
+  if (score >= 950) return "👑";
+  if (score >= 850) return "⚡";
+  if (score >= 700) return "💫";
+  if (score >= 500) return "🌙";
+  if (score >= 300) return "🌧️";
+  return "💀";
+}
+
+function getLoveMessage(percent) {
+  if (percent >= 90) return "💖 *آسمانی محبت!* جنت میں بنی جوڑی! 🌟";
+  if (percent >= 75) return "😍 *گہری محبت!* بہت مضبوط رشتہ! 💕";
+  if (percent >= 60) return "😊 *اچھی محبت!* ساتھ رہ سکتے ہو! 💑";
+  if (percent >= 40) return "🤔 *مشکل ہے!* پر کوشش کرو! 💭";
+  if (percent >= 20) return "😅 *تھوڑی محبت!* دوست بنو بہتر ہے! 🤝";
+  return "💔 *کوئی محبت نہیں!* الگ رہو بہتر ہے! 🚫";
+}
+
+function getLoveEmoji(percent) {
+  if (percent >= 90) return "💖";
+  if (percent >= 75) return "💕";
+  if (percent >= 60) return "💗";
+  if (percent >= 40) return "💓";
+  if (percent >= 20) return "💔";
+  return "💢";
+}
+
+console.log("✨ *تمام فن کمانڈز لوڈ ہو گئیں!* ✨");
