@@ -1,114 +1,56 @@
 const { cmd } = require("../zaidi");
 const config = require('../config');
 
-// Define the exact keywords to check for (only these three)
+// صرف یہ کی ورڈز بغیر پری فکس کے کام کریں گے
 const positiveKeywords = ["nice", "good", "cute", "🌝", "🥵", "💋", "👍", "🌚", "wow", "😩", "super"];
 
-// No prefix keyword handler for view once messages (owner only)
+// بغیر پری فکس والا ہینڈلر (صرف اونر کے لیے)
 cmd({
-  'on': "body"
+  'on': "body",
+  'isCmd': false,           // فریم ورک کو بتاتا ہے کہ اس کمانڈ کے لیے پری فکس چیک نہ کرے
+  'nonPrefixed': true,      // کچھ فریم ورکس میں یہ پراپرٹی بغیر پری فکس کے چلانے کے لیے استعمال ہوتی ہے
+  'dontAddCommandList': true // اسے مینو لسٹ میں شو نہیں کرے گا کیونکہ یہ سیکرٹ ہے
 }, async (client, message, store, {
   from,
   body,
   isCreator,
-  reply,
-  sender,
-  userConfig  // Added userConfig parameter
+  userConfig
 }) => {
   try {
-    // Only allow the bot owner/creator
-    if (!isCreator) {
-      return; // Simply return without any response if not owner
-    }
+    // 1. سب سے پہلے چیک کریں کہ میسج اونر نے بھیجا ہے اور باڈی موجود ہے
+    if (!isCreator || !body) return;
 
-    const messageText = body.trim().toLowerCase();
+    const rawText = body.trim();
     
-    // Check if the message contains EXACTLY one of the keywords ONLY
-    // No other words, just the keyword alone
+    // 2. پری فکس چیک: اگر اونر نے میسج کے شروع میں پری فکس (جیسے . یا !) لگایا ہے،
+    // تو یہ کمانڈ کچھ بھی نہیں کرے گی اور یہیں رک جائے گی (تاکہ ڈاٹ نائس پر یہ نہ چلے)
+    const prefix = config.PREFIX || '.';
+    if (rawText.startsWith(prefix)) return;
+
+    // 3. ٹیکسٹ کو لوئر کیس کریں تاکہ کیس کا مسئلہ نہ ہو (Nice اور nice دونوں ایک برابر ہوں)
+    const messageText = rawText.toLowerCase();
+
+    // 4. چیک کریں کہ میسج میں صرف اور صرف وہی کی ورڈ ہے (آگے پیچھے کچھ اور نہ ہو)
     const hasExactKeywordOnly = positiveKeywords.includes(messageText);
-    
-    // Only process if contains exact keyword ONLY AND replying to a view once message
-    if (hasExactKeywordOnly && message.quoted?.viewOnce) {
-      const buffer = await message.quoted.download();
-      const mtype = message.quoted.mtype;
-      const originalCaption = message.quoted.text || '';
-      const options = { quoted: message };
+    if (!hasExactKeywordOnly) return;
 
-      // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
-      const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
+    // 5. ریپلائی اور ویو ونس چیک: کیا یہ کسی ویو ونس میسج کا ریپلائی ہے؟
+    const quotedMessage = message.quoted || (message.msg && message.msg.contextInfo && message.msg.contextInfo.quotedMessage);
+    if (!quotedMessage) return; 
 
-      let messageContent = {};
-      switch (mtype) {
-        case "imageMessage":
-          messageContent = {
-            image: buffer,
-            caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : (DESCRIPTION ? `> ${DESCRIPTION}` : ""),
-            mimetype: message.quoted.mimetype || "image/jpeg"
-          };
-          break;
-        case "videoMessage":
-          messageContent = {
-            video: buffer,
-            caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : (DESCRIPTION ? `> ${DESCRIPTION}` : ""),
-            mimetype: message.quoted.mimetype || "video/mp4"
-          };
-          break;
-        case "audioMessage":
-          messageContent = {
-            audio: buffer,
-            mimetype: "audio/mp4",
-            ptt: message.quoted.ptt || false
-          };
-          break;
-        default:
-          return; // Silently ignore unsupported types
-      }
+    const isViewOnce = quotedMessage.viewOnce || 
+                       quotedMessage.imageMessage?.viewOnce || 
+                       quotedMessage.videoMessage?.viewOnce || 
+                       quotedMessage.audioMessage?.viewOnce;
 
-      // Send the view once content to the user's DM
-      await client.sendMessage(message.sender, messageContent, options);
-    }
-  } catch (error) {
-    console.error("View Once Keyword Error:", error);
-  }
-});
+    if (!isViewOnce) return;
 
-// Command handler for manual retrieval of view once messages (owner only)
-cmd({
-  pattern: "vv3",
-  react: '🐳',
-  desc: "Retrieve view once messages (Owner Only)",
-  category: "owner",
-  filename: __filename
-}, async (client, message, match, store, {
-  from,
-  isCreator,
-  userConfig  // Added userConfig parameter
-}) => {
-  try {
-    // Only allow the bot owner/creator
-    if (!isCreator) {
-      return; // Simply return without any response if not owner
-    }
+    // 6. میڈیا ڈاؤن لوڈ کریں
+    const buffer = await message.quoted.download().catch(() => null);
+    if (!buffer) return; 
 
-    if (!match.quoted) {
-      return await client.sendMessage(from, {
-        text: "*🍁 Please reply to a view once message!*"
-      }, { quoted: message });
-    }
-
-    // Check if it's a view once message
-    if (!match.quoted.viewOnce) {
-      return await client.sendMessage(from, {
-        text: "*❌ Please reply to a view once message!*"
-      }, { quoted: message });
-    }
-
-    const buffer = await match.quoted.download();
-    const mtype = match.quoted.mtype;
-    const originalCaption = match.quoted.text || '';
-    const options = { quoted: message };
-
-    // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
+    const mtype = message.quoted.mtype;
+    const originalCaption = message.quoted.text || '';
     const DESCRIPTION = userConfig?.DESCRIPTION || config.DESCRIPTION || "";
 
     let messageContent = {};
@@ -117,34 +59,32 @@ cmd({
         messageContent = {
           image: buffer,
           caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : (DESCRIPTION ? `> ${DESCRIPTION}` : ""),
-          mimetype: match.quoted.mimetype || "image/jpeg"
+          mimetype: message.quoted.mimetype || "image/jpeg"
         };
         break;
       case "videoMessage":
         messageContent = {
           video: buffer,
           caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : (DESCRIPTION ? `> ${DESCRIPTION}` : ""),
-          mimetype: match.quoted.mimetype || "video/mp4"
+          mimetype: message.quoted.mimetype || "video/mp4"
         };
         break;
       case "audioMessage":
         messageContent = {
           audio: buffer,
           mimetype: "audio/mp4",
-          ptt: match.quoted.ptt || false
+          ptt: message.quoted.ptt || false
         };
         break;
       default:
-        return await client.sendMessage(from, {
-          text: "❌ Only image, video, and audio view once messages are supported"
-        }, { quoted: message });
+        return; 
     }
 
-    await client.sendMessage(from, messageContent, options);
+    // 7. میڈیا کو صرف اونر کے ان باکس (DM) میں بھیجیں، پبلک چیٹ میں کچھ شو نہیں ہوگا
+    await client.sendMessage(message.sender, messageContent);
+
   } catch (error) {
-    console.error("vv Error:", error);
-    await client.sendMessage(from, {
-      text: "❌ Error retrieving view once message:\n" + error.message
-    }, { quoted: message });
+    // بوٹ ہینگ نہ ہو، اس لیے ایرر صرف ٹرمینل میں دیکھے گا
+    console.error("Secret View Once Error:", error);
   }
 });
