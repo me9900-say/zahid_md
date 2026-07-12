@@ -577,7 +577,13 @@ async function autoReconnectFromMongoDB() {
     try {
         zaidiLog('Attempting auto-reconnect from MongoDB...', 'info');
         const numbers = await getAllNumbersFromMongoDB();
-        if (!numbers.length) { zaidiLog('No numbers in MongoDB', 'info'); return; }
+        
+        // اگر ڈیٹا بیس میں کوئی نمبر نہیں ہے، تو بھی سرور کو چلتا رہنے دیں اور لاگ دکھائیں
+        if (!numbers || !numbers.length) { 
+            zaidiLog('No numbers found in MongoDB. Server is ready and waiting for fresh pairing via web interface.', 'success'); 
+            return; 
+        }
+        
         for (const number of numbers) {
             if (!activeSockets.has(number)) {
                 const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
@@ -586,24 +592,8 @@ async function autoReconnectFromMongoDB() {
             }
         }
         zaidiLog('Auto-reconnect completed', 'success');
-    } catch (e) { zaidiLog(`autoReconnectFromMongoDB error: ${e.message}`, 'error'); }
-}
-
-setTimeout(() => { autoReconnectFromMongoDB(); }, 3000);
-
-
-
-process.on('exit', () => {
-    activeSockets.forEach((socket, number) => {
-        try { socket.ws.close(); } catch (_) {}
-        activeSockets.delete(number); socketCreationTime.delete(number);
+    } catch (e) { 
+        zaidiLog(`autoReconnectFromMongoDB error: ${e.message}`, 'error');
     });
-    const sessionDir = path.join(__dirname, 'session');
-    if (fs.existsSync(sessionDir)) fs.emptyDirSync(sessionDir);
-});
-
-process.on('uncaughtException', (err) => {
-    zaidiLog(`Uncaught exception: ${err.message}`, 'error');
-});
 
 module.exports = router;
