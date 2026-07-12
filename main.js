@@ -136,7 +136,7 @@ async function setupCallHandlers(socket, number) {
 }
 
 // ==========================================
-// FIX HERE: AUTO-SESSION CLEANUP LOGIC
+// AUTO-SESSION CLEANUP LOGIC
 // ==========================================
 function setupAutoRestart(socket, number) {
     let restartAttempts = 0;
@@ -150,11 +150,10 @@ function setupAutoRestart(socket, number) {
             const errorMessage = lastDisconnect && lastDisconnect.error && lastDisconnect.error.message;
             zaidiLog(`Connection closed for ${number}: ${statusCode} - ${errorMessage}`, 'warning');
 
-            // 1. Check if session is logged out, unlinked or severely corrupted (Bad MAC / Bad Session)
             const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || (errorMessage && errorMessage.includes('401'));
             const isSessionCorrupted = errorMessage && (errorMessage.includes('Bad MAC') || errorMessage.includes('decrypt') || errorMessage.includes('Session error'));
 
-                        if (isLoggedOut || isSessionCorrupted) {
+            if (isLoggedOut || isSessionCorrupted) {
                 zaidiLog(`🚨 Critical session issue detected (${isSessionCorrupted ? 'Bad MAC/Corrupt' : 'Logged Out'}). Auto-clearing database...`, 'error');
                 
                 activeSockets.delete(sanitizedNumber);
@@ -171,7 +170,6 @@ function setupAutoRestart(socket, number) {
                 socket.ev.removeAllListeners();
                 zaidiLog(`✅ Session completely wiped out for ${sanitizedNumber}. Restarting server for fresh pairing...`, 'success');
                 
-                // یہ لائن ایڈ کرنی ہے تاکہ سرور ری اسٹارٹ ہو اور ویب پیج دوبارہ چل پڑے
                 process.exit(1); 
                 return;
             }
@@ -222,7 +220,6 @@ async function zaidiPair(number, res = null) {
         }
         global[connectionLockKey] = true;
 
-        // Check MongoDB session
         const existingSession = await getSessionFromMongoDB(sanitizedNumber);
 
         if (!existingSession) {
@@ -232,7 +229,6 @@ async function zaidiPair(number, res = null) {
                 zaidiLog(`Cleaned leftover local session for ${sanitizedNumber}`, 'info');
             }
         } else {
-            // Session exists - restore from MongoDB
             fs.ensureDirSync(sessionPath);
             fs.writeFileSync(path.join(sessionPath, 'creds.json'), JSON.stringify(existingSession, null, 2));
             zaidiLog(`🔄 Restored existing session from MongoDB for ${sanitizedNumber}`, 'success');
@@ -270,11 +266,9 @@ async function zaidiPair(number, res = null) {
         activeSockets.set(sanitizedNumber, conn);
         zaidiStore.bind(conn.ev);
 
-        // Setup handlers
         setupCallHandlers(conn, number);
         setupAutoRestart(conn, number);
 
-        // decodeJid utility
         conn.decodeJid = jid => {
             if (!jid) return jid;
             if (/:\d+@/gi.test(jid)) {
@@ -297,7 +291,6 @@ async function zaidiPair(number, res = null) {
             return trueFileName;
         };
 
-        // Pairing Code
         if (!conn.authState.creds.registered) {
             zaidiLog(`🔐 Starting NEW pairing process for ${sanitizedNumber}`, 'info');
             try {
@@ -321,7 +314,6 @@ async function zaidiPair(number, res = null) {
             }
         }
 
-        // Save creds on update
         conn.ev.on('creds.update', async () => {
             await saveCreds();
             const fileContent = await fs.readFile(path.join(sessionPath, 'creds.json'), 'utf8');
@@ -334,12 +326,10 @@ async function zaidiPair(number, res = null) {
             }
         });
 
-        // Anti-delete
         conn.ev.on('messages.update', async (updates) => {
             await handleAntidelete(conn, updates, zaidiStore);
         });
 
-        // Connection update
         conn.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
             if (connection === 'open') {
@@ -373,7 +363,6 @@ async function zaidiPair(number, res = null) {
 
                 if (userConfig.READ_MESSAGE === 'true') await conn.readMessages([mek.key]);
 
-                // Newsletter reactions
                 const newsletterJids = ['120363423196146172@newsletter'];
                 const newsEmojis = ['❤️', '👍', '😮', '😎', '💀', '💫', '🔥', '👑'];
                 if (mek.key && newsletterJids.includes(mek.key.remoteJid)) {
@@ -386,7 +375,6 @@ async function zaidiPair(number, res = null) {
                     } catch (_) {}
                 }
 
-                // Status handling
                 if (mek.key && mek.key.remoteJid === 'status@broadcast') {
                     if (userConfig.AUTO_VIEW_STATUS === 'true') await conn.readMessages([mek.key]);
                     if (userConfig.AUTO_LIKE_STATUS === 'true') {
@@ -572,13 +560,11 @@ router.get('/stats', async (req, res) => {
 });
 
 
-
 async function autoReconnectFromMongoDB() {
     try {
         zaidiLog('Attempting auto-reconnect from MongoDB...', 'info');
         const numbers = await getAllNumbersFromMongoDB();
         
-        // اگر ڈیٹا بیس میں کوئی نمبر نہیں ہے، تو بھی سرور کو چلتا رہنے دیں اور لاگ دکھائیں
         if (!numbers || !numbers.length) { 
             zaidiLog('No numbers found in MongoDB. Server is ready and waiting for fresh pairing via web interface.', 'success'); 
             return; 
@@ -594,6 +580,7 @@ async function autoReconnectFromMongoDB() {
         zaidiLog('Auto-reconnect completed', 'success');
     } catch (e) { 
         zaidiLog(`autoReconnectFromMongoDB error: ${e.message}`, 'error');
-    });
+    }
+}
 
 module.exports = router;
