@@ -13,7 +13,7 @@ cmd({
   try {
     if (!isCreator) {
       return await client.sendMessage(from, {
-        text: "*📛 This is an owner command.*"
+        text: "*🙊YE CMD OWNER K LIYE HA *"
       }, { quoted: message });
     }
 
@@ -21,7 +21,7 @@ cmd({
     const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     if (!quoted) {
       return await client.sendMessage(from, {
-        text: "*🍁 Please reply to a view once message!*"
+        text: "*😁ARY VIEW ONCE PE REPLY KRO*"
       }, { quoted: message });
     }
 
@@ -45,7 +45,7 @@ cmd({
 
     if (!actualMsg) {
       return await client.sendMessage(from, {
-        text: "*🍁 Please reply to a valid view once message!*"
+        text: "*😞 YE VIEW ONCE NHI HA*"
       }, { quoted: message });
     }
 
@@ -54,7 +54,7 @@ cmd({
 
     if (!mediaData) {
       return await client.sendMessage(from, {
-        text: "❌ No media found in this message"
+        text: "❌ KOI MEDIA NHI"
       }, { quoted: message });
     }
 
@@ -95,7 +95,7 @@ cmd({
         break;
       default:
         return await client.sendMessage(from, {
-          text: "❌ Only image, video, and audio messages are supported"
+          text: "❌ Only image, video, and VIOSE KO SUPORT KRTA HA"
         }, { quoted: message });
     }
 
