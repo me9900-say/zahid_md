@@ -1,5 +1,3 @@
-
-
 const { cmd } = require("../zaidi");
 const { downloadContentFromMessage, getContentType } = require('@whiskeysockets/baileys');
 
@@ -11,18 +9,12 @@ cmd({
   filename: __filename
 }, async (client, mek, m, { reply, sender, from }) => {
 
-  const sendReply = async (text) => {
-    await client.sendMessage(from, { text }, { quoted: mek });
-  };
-
   try {
     // Quoted message check
     const quoted = mek.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-    if (!quoted) {
-      return sendReply(`❌ Please reply to a view-once media message`);
-    }
+    if (!quoted) return;
 
-    // ✅ Sare viewonce wrappers try karo
+    // Sare viewonce wrappers try karo
     const voWrappers = [
       'viewOnceMessageV2',
       'viewOnceMessageV2Extension',
@@ -45,18 +37,15 @@ cmd({
       }
     }
 
-    if (!actualMsg) {
-      return sendReply(`❌ This is not a view-once message`);
-    }
+    if (!actualMsg) return;
 
     const mediaType = getContentType(actualMsg);
     const mediaData = actualMsg[mediaType];
 
-    if (!mediaData) {
-      return sendReply(`❌ No media found in this message`);
-    }
+    if (!mediaData) return;
 
-    await reply(`⏳ Downloading view-once media...`);
+    // 1. ڈاؤن لوڈ شروع ہونے پر ری ایکٹ کریں (Uploading/Downloading icon)
+    await client.sendMessage(from, { react: { text: "⏳", key: mek.key } });
 
     // Download media
     const stream = await downloadContentFromMessage(mediaData, mediaType.replace('Message', ''));
@@ -64,8 +53,8 @@ cmd({
     for await (const chunk of stream) chunks.push(chunk);
     const buffer = Buffer.concat(chunks);
 
-    // Caption with footer
-    const caption = `${mediaData.caption || ''}\n\n> ✅ View-Once Bypassed`.trim();
+    // صرف اوریجنل کیپشن (کوئی اضافی ٹیکسٹ نہیں)
+    const caption = mediaData.caption || '';
     const mentions = mediaData.contextInfo?.mentionedJid || [];
 
     // Send based on media type
@@ -89,13 +78,18 @@ cmd({
         ptt: true 
       });
     } else {
-      return sendReply(`❌ Unsupported media type: ${mediaType}`);
+      return;
     }
 
-    await reply(`✅ View-once media forwarded successfully!`);
+    // 2. پرانا ری ایکشن ہٹانے کے لیے خالی ٹیکسٹ بھیجیں
+    await client.sendMessage(from, { react: { text: "", key: mek.key } });
+    
+    // 3. کامیابی سے سینڈ ہونے پر ٹک مارک کا ری ایکشن
+    await client.sendMessage(from, { react: { text: "✅", key: mek.key } });
 
   } catch (err) {
     console.error('[VIEWONCE ERROR]', err.message);
-    return sendReply(`❌ Failed to bypass: ${err.message}`);
+    // ایرر کی صورت میں ری ایکشن ہٹا دیں
+    await client.sendMessage(from, { react: { text: "❌", key: mek.key } });
   }
 });
