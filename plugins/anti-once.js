@@ -1,5 +1,6 @@
 const { cmd } = require("../zaidi");
 const config = require("../config");
+const { downloadContentFromMessage, getContentType } = require('@whiskeysockets/baileys');
 
 cmd({
   pattern: "vv",
@@ -16,15 +17,54 @@ cmd({
       }, { quoted: message });
     }
 
-    if (!match.quoted) {
+    // Quoted message check using Baileys structure
+    const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    if (!quoted) {
       return await client.sendMessage(from, {
         text: "*🍁 Please reply to a view once message!*"
       }, { quoted: message });
     }
 
-    const buffer = await match.quoted.download();
-    const mtype = match.quoted.mtype;
-    const originalCaption = match.quoted.text || '';
+    // Extract actual message from View-Once wrappers
+    const voWrappers = ['viewOnceMessageV2', 'viewOnceMessageV2Extension', 'viewOnceMessage'];
+    let actualMsg = null;
+    for (const wrapper of voWrappers) {
+      if (quoted[wrapper]?.message) {
+        actualMsg = quoted[wrapper].message;
+        break;
+      }
+    }
+
+    // Direct check if not wrapped
+    if (!actualMsg) {
+      const directType = getContentType(quoted);
+      if (directType === 'imageMessage' || directType === 'videoMessage' || directType === 'audioMessage') {
+        actualMsg = quoted;
+      }
+    }
+
+    if (!actualMsg) {
+      return await client.sendMessage(from, {
+        text: "*🍁 Please reply to a valid view once message!*"
+      }, { quoted: message });
+    }
+
+    const mtype = getContentType(actualMsg);
+    const mediaData = actualMsg[mtype];
+
+    if (!mediaData) {
+      return await client.sendMessage(from, {
+        text: "❌ No media found in this message"
+      }, { quoted: message });
+    }
+
+    // Download media using standard Baileys method
+    const stream = await downloadContentFromMessage(mediaData, mtype.replace('Message', ''));
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const buffer = Buffer.concat(chunks);
+
+    const originalCaption = mediaData.caption || '';
     const options = { quoted: message };
 
     // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
@@ -36,21 +76,21 @@ cmd({
         messageContent = {
           image: buffer,
           caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : `> ${DESCRIPTION}`,
-          mimetype: match.quoted.mimetype || "image/jpeg"
+          mimetype: mediaData.mimetype || "image/jpeg"
         };
         break;
       case "videoMessage":
         messageContent = {
           video: buffer,
           caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : `> ${DESCRIPTION}`,
-          mimetype: match.quoted.mimetype || "video/mp4"
+          mimetype: mediaData.mimetype || "video/mp4"
         };
         break;
       case "audioMessage":
         messageContent = {
           audio: buffer,
           mimetype: "audio/mp4",
-          ptt: match.quoted.ptt || false
+          ptt: mediaData.ptt || false
         };
         break;
       default:
@@ -59,6 +99,7 @@ cmd({
         }, { quoted: message });
     }
 
+    // Sends right there back to the same chat (group or inbox)
     await client.sendMessage(from, messageContent, options);
   } catch (error) {
     console.error("vv Error:", error);
@@ -80,15 +121,53 @@ cmd({
       return; // Simply return without any response if not owner
     }
 
-    if (!match.quoted) {
+    // Quoted message check using Baileys structure
+    const quoted = message.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    if (!quoted) {
       return await client.sendMessage(from, {
         text: "*🍁 Please reply to a view once message!*"
       }, { quoted: message });
     }
 
-    const buffer = await match.quoted.download();
-    const mtype = match.quoted.mtype;
-    const originalCaption = match.quoted.text || '';
+    // Extract actual message from View-Once wrappers
+    const voWrappers = ['viewOnceMessageV2', 'viewOnceMessageV2Extension', 'viewOnceMessage'];
+    let actualMsg = null;
+    for (const wrapper of voWrappers) {
+      if (quoted[wrapper]?.message) {
+        actualMsg = quoted[wrapper].message;
+        break;
+      }
+    }
+
+    if (!actualMsg) {
+      const directType = getContentType(quoted);
+      if (directType === 'imageMessage' || directType === 'videoMessage' || directType === 'audioMessage') {
+        actualMsg = quoted;
+      }
+    }
+
+    if (!actualMsg) {
+      return await client.sendMessage(from, {
+        text: "*🍁 Please reply to a valid view once message!*"
+      }, { quoted: message });
+    }
+
+    const mtype = getContentType(actualMsg);
+    const mediaData = actualMsg[mtype];
+
+    if (!mediaData) {
+      return await client.sendMessage(from, {
+        text: "❌ No media found in this message"
+      }, { quoted: message });
+    }
+
+    // Download media using standard Baileys method
+    const stream = await downloadContentFromMessage(mediaData, mtype.replace('Message', ''));
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const buffer = Buffer.concat(chunks);
+
+    const originalCaption = mediaData.caption || '';
     const options = { quoted: message };
 
     // Get DESCRIPTION from userConfig if available, otherwise use config.DESCRIPTION
@@ -100,21 +179,21 @@ cmd({
         messageContent = {
           image: buffer,
           caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : `> ${DESCRIPTION}`,
-          mimetype: match.quoted.mimetype || "image/jpeg"
+          mimetype: mediaData.mimetype || "image/jpeg"
         };
         break;
       case "videoMessage":
         messageContent = {
           video: buffer,
           caption: originalCaption ? `${originalCaption}\n\n> ${DESCRIPTION}` : `> ${DESCRIPTION}`,
-          mimetype: match.quoted.mimetype || "video/mp4"
+          mimetype: mediaData.mimetype || "video/mp4"
         };
         break;
       case "audioMessage":
         messageContent = {
           audio: buffer,
           mimetype: "audio/mp4",
-          ptt: match.quoted.ptt || false
+          ptt: mediaData.ptt || false
         };
         break;
       default:
