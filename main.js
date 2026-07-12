@@ -135,9 +135,13 @@ async function setupCallHandlers(socket, number) {
     });
 }
 
+// ==========================================
+// FIX HERE: AUTO-SESSION CLEANUP LOGIC
+// ==========================================
 function setupAutoRestart(socket, number) {
     let restartAttempts = 0;
     const maxRestartAttempts = 3;
+    const sanitizedNumber = number.replace(/[^0-9]/g, '');
 
     socket.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
@@ -146,14 +150,29 @@ function setupAutoRestart(socket, number) {
             const errorMessage = lastDisconnect && lastDisconnect.error && lastDisconnect.error.message;
             zaidiLog(`Connection closed for ${number}: ${statusCode} - ${errorMessage}`, 'warning');
 
-            if (statusCode === 401 || (errorMessage && errorMessage.includes('401'))) {
-                zaidiLog(`Manual unlink detected for ${number}, cleaning up...`, 'warning');
-                const sanitizedNumber = number.replace(/[^0-9]/g, '');
+            // 1. Check if session is logged out, unlinked or severely corrupted (Bad MAC / Bad Session)
+            const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || (errorMessage && errorMessage.includes('401'));
+            const isSessionCorrupted = errorMessage && (errorMessage.includes('Bad MAC') || errorMessage.includes('decrypt') || errorMessage.includes('Session error'));
+
+            if (isLoggedOut || isSessionCorrupted) {
+                zaidiLog(`🚨 Critical session issue detected (${isSessionCorrupted ? 'Bad MAC/Corrupt' : 'Logged Out'}). Auto-clearing database...`, 'error');
+                
+                // Active memory logs clear karein
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
+                
+                // MongoDB se session/config saaf karein
                 await deleteSessionFromMongoDB(sanitizedNumber);
                 await removeNumberFromMongoDB(sanitizedNumber);
+                
+                // Local temporary folder bhi urra dein
+                const sessionPath = path.join(__dirname, 'session', `session_${sanitizedNumber}`);
+                if (fs.existsSync(sessionPath)) {
+                    await fs.remove(sessionPath);
+                }
+                
                 socket.ev.removeAllListeners();
+                zaidiLog(`✅ Session completely wiped out for ${sanitizedNumber}. Ready for a fresh pairing!`, 'success');
                 return;
             }
 
@@ -163,7 +182,6 @@ function setupAutoRestart(socket, number) {
             if (restartAttempts < maxRestartAttempts) {
                 restartAttempts++;
                 zaidiLog(`Reconnecting ${number} (${restartAttempts}/${maxRestartAttempts}) in 10s...`, 'warning');
-                const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
                 socket.ev.removeAllListeners();
