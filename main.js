@@ -154,27 +154,28 @@ function setupAutoRestart(socket, number) {
             const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || (errorMessage && errorMessage.includes('401'));
             const isSessionCorrupted = errorMessage && (errorMessage.includes('Bad MAC') || errorMessage.includes('decrypt') || errorMessage.includes('Session error'));
 
-            if (isLoggedOut || isSessionCorrupted) {
+                        if (isLoggedOut || isSessionCorrupted) {
                 zaidiLog(`🚨 Critical session issue detected (${isSessionCorrupted ? 'Bad MAC/Corrupt' : 'Logged Out'}). Auto-clearing database...`, 'error');
                 
-                // Active memory logs clear karein
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
                 
-                // MongoDB se session/config saaf karein
                 await deleteSessionFromMongoDB(sanitizedNumber);
                 await removeNumberFromMongoDB(sanitizedNumber);
                 
-                // Local temporary folder bhi urra dein
                 const sessionPath = path.join(__dirname, 'session', `session_${sanitizedNumber}`);
                 if (fs.existsSync(sessionPath)) {
                     await fs.remove(sessionPath);
                 }
                 
                 socket.ev.removeAllListeners();
-                zaidiLog(`✅ Session completely wiped out for ${sanitizedNumber}. Ready for a fresh pairing!`, 'success');
+                zaidiLog(`✅ Session completely wiped out for ${sanitizedNumber}. Restarting server for fresh pairing...`, 'success');
+                
+                // یہ لائن ایڈ کرنی ہے تاکہ سرور ری اسٹارٹ ہو اور ویب پیج دوبارہ چل پڑے
+                process.exit(1); 
                 return;
             }
+
 
             const isNormalError = statusCode === 408 || (errorMessage && errorMessage.includes('QR refs attempts ended'));
             if (isNormalError) { zaidiLog(`Normal closure for ${number}, no restart needed.`, 'info'); return; }
