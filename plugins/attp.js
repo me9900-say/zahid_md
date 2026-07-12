@@ -1,5 +1,4 @@
 const { cmd } = require('../zaidi');
-const { sleep } = require('../lib/functions');
 const { fetchGif, gifToSticker } = require('../lib/sticker-utils');
 
 cmd({
@@ -13,71 +12,36 @@ cmd({
 }, async (conn, mek, m, { from, args, reply }) => {
 
     try {
-        await conn.sendMessage(from, {
-            react: { text: "✨", key: m.key }
-        });
-
+        // اگر صارف ٹیکسٹ نہ لکھے
         if (!args[0]) {
-            const display = `╭═══ ✨ ATTP STICKER ═══⊷
-┃❃╭──────────────
-┃❃│ 🥺 No Text Provided
-┃❃│ 💡 Use: .attp <text>
-┃❃│ 📝 Example: .attp Bilal
-┃❃╰───────────────
-╰═════════════════⊷
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪`;
-
-            await conn.sendMessage(from, {
-                text: display,
-                quoted: mek
-            });
-
-            await conn.sendMessage(from, {
-                react: { text: "⚠️", key: m.key }
-            });
-
-            return;
+            await conn.sendMessage(from, { react: { text: "⚠️", key: m.key } });
+            return reply("🥺 *No Text Provided!*\n💡 *Use:* `.attp Bilal`");
         }
 
-        const text = encodeURIComponent(args.join(" "));
+        // کام شروع ہونے کا ری ایکشن
+        await conn.sendMessage(from, { react: { text: "✨", key: m.key } });
 
-        const loading = `╭═══ ✨ ATTP STICKER ═══⊷
-┃❃╭──────────────
-┃❃│ ✨ Making Sticker...
-┃❃│ 📝 Text: ${args.join(" ")}
-┃❃│ ⏳ Please wait...
-┃❃╰───────────────
-╰═════════════════⊷
-
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ 𓆩𝐙𝐀𝐈𝐃𝐈-𝐌𝐃𓆪`;
-
+        // بالکل سمپل لوڈنگ میسج
         await conn.sendMessage(from, {
-            text: loading,
+            text: `⏳ *Making Sticker for:* ${args.join(" ")}...`,
             quoted: mek
         });
 
-        const gifBuffer = await fetchGif(
-            `https://api-fix.onrender.com/api/maker/attp?text=${text}`
-        );
+        const text = encodeURIComponent(args.join(" "));
 
+        // API سے gif حاصل کرنا اور اسٹیکر بنانا
+        const gifBuffer = await fetchGif(`https://api-fix.onrender.com/api/maker/attp?text=${text}`);
         const sticker = await gifToSticker(gifBuffer);
 
-        await conn.sendMessage(
-            from,
-            { sticker },
-            { quoted: mek }
-        );
+        // اسٹیکر سینڈ کرنا
+        await conn.sendMessage(from, { sticker }, { quoted: mek });
 
-        await conn.sendMessage(from, {
-            react: { text: "✅", key: m.key }
-        });
+        // کامیابی کا ری ایکشن
+        await conn.sendMessage(from, { react: { text: "✅", key: m.key } });
 
     } catch (e) {
         console.log("ATTP ERROR:", e);
-        await conn.sendMessage(from, {
-            react: { text: "❌", key: m.key }
-        });
+        await conn.sendMessage(from, { react: { text: "❌", key: m.key } });
         reply("❌ *Sticker banane me error aya!*");
     }
 });
